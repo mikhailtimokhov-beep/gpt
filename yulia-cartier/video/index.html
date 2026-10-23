@@ -52,6 +52,12 @@
   .gift img { width: 760px; height: 760px; object-fit: cover; display: block; border: 14px solid #fff; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
   .gift .k { margin-top: 70px; }
   .gift .t { font-family: var(--script); font-size: 96px; color: var(--gold-light); margin-top: 20px; line-height: 1.15; }
+  .polaroid.big { margin-top: 0; padding: 26px 26px 30px; overflow: hidden; }
+  .polaroid.big img { width: 720px; height: 900px; object-position: 50% 30%; }
+  .polaroid.big .clip { overflow: hidden; }
+  .pcap { margin-top: 70px; }
+  .pcap .year { font-family: var(--caps); font-size: 110px; color: var(--gold-light); letter-spacing: .08em; line-height: 1; }
+  .pcap .txt { font-family: var(--script); font-size: 76px; color: var(--paper); margin-top: 14px; }
   [data-in] { opacity: 0; }
 </style>
 </head>
@@ -129,22 +135,26 @@
   <div class="polaroid" data-in="1.2" style="transform:rotate(-1.5deg)"><img src="../photos/yulia-blossom.jpg" style="object-position:35% 22%"></div>
 </section>
 
-<!-- 9. Montage 2017 → today -->
-<section class="scene" data-start="33.2" data-end="36.0" style="padding:0">
-  <div class="full"><img data-kb src="../photos/yulia-2017-mama.jpg" style="object-position:50% 30%"></div><div class="shade"></div>
-  <div class="cap"><p class="year" data-in="0.3">2017</p><p class="txt" data-in="0.6">Мама. С этого всё началось</p></div>
+<!-- 9. Montage 2017 → today: Yulia alone -->
+<section class="scene" data-start="33.2" data-end="36.0">
+  <div class="frame-line"></div>
+  <div class="polaroid big" data-in="0.1" style="transform:rotate(-2deg)"><div class="clip"><img data-kb src="../photos/solo-2017.jpg"></div></div>
+  <div class="pcap"><p class="year" data-in="0.3">2017</p><p class="txt" data-in="0.6">С этого всё началось</p></div>
 </section>
-<section class="scene" data-start="36.0" data-end="38.6" style="padding:0">
-  <div class="full"><img data-kb src="../photos/yulia-2017-bike.jpg" style="object-position:45% 40%"></div><div class="shade"></div>
-  <div class="cap"><p class="txt" data-in="0.3">Первый браслет. Первые заказы.</p></div>
+<section class="scene" data-start="36.0" data-end="38.6">
+  <div class="frame-line"></div>
+  <div class="polaroid big" data-in="0.1" style="transform:rotate(1.5deg)"><div class="clip"><img data-kb src="../photos/solo-bike.jpg"></div></div>
+  <div class="pcap"><p class="txt" data-in="0.6">Первый браслет. Первые заказы.</p></div>
 </section>
-<section class="scene" data-start="38.6" data-end="41.4" style="padding:0">
-  <div class="full"><img data-kb src="../photos/family-today.jpg" style="object-position:50% 20%"></div><div class="shade"></div>
-  <div class="cap"><p class="year" data-in="0.3">Сегодня</p><p class="txt" data-in="0.6">Та же мама, та же дочка</p></div>
+<section class="scene" data-start="38.6" data-end="41.4">
+  <div class="frame-line"></div>
+  <div class="polaroid big" data-in="0.1" style="transform:rotate(-1.5deg)"><div class="clip"><img data-kb src="../photos/solo-today.jpg"></div></div>
+  <div class="pcap"><p class="year" data-in="0.3">Сегодня</p><p class="txt" data-in="0.6">Та же Юля — и целый дом</p></div>
 </section>
-<section class="scene" data-start="41.4" data-end="44.0" style="padding:0">
-  <div class="full"><img data-kb src="../photos/family-selfie.jpg" style="object-position:50% 30%"></div><div class="shade"></div>
-  <div class="cap"><p class="txt" data-in="0.3">2 000 моделей · 29 000 историй</p></div>
+<section class="scene" data-start="41.4" data-end="44.0">
+  <div class="frame-line"></div>
+  <div class="polaroid big" data-in="0.1" style="transform:rotate(2deg)"><div class="clip"><img data-kb src="../photos/solo-selfie.jpg"></div></div>
+  <div class="pcap"><p class="txt" data-in="0.6">2 000 моделей · 29 000 историй</p></div>
 </section>
 
 <!-- 10. Gifts -->
@@ -162,9 +172,10 @@
 </section>
 
 <!-- 11. Finale (voice-over window) -->
-<section class="scene" data-start="52.0" data-end="56.2" style="padding:0">
-  <div class="full"><img data-kb src="../photos/us-today.jpg" style="object-position:48% 35%"></div><div class="shade"></div>
-  <div class="cap"><p class="txt" data-in="0.4" style="font-size:110px">Nous</p></div>
+<section class="scene" data-start="52.0" data-end="56.2">
+  <div class="frame-line"></div>
+  <div class="polaroid big" data-in="0.1" style="transform:rotate(-1deg)"><div class="clip"><img data-kb src="../photos/solo-us.jpg"></div></div>
+  <div class="pcap"><p class="txt" data-in="0.6">Julie · 2026</p></div>
 </section>
 <section class="scene" data-start="56.2" data-end="60.6">
   <div class="frame-line"></div>
