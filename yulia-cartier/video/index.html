@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Ma chère Julie — film</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Cormorant+SC:wght@500;600&family=Pinyon+Script&family=Marck+Script&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6efe2; --wine: #5e101b; --wine-deep: #2a060b; --gold: #b9945a; --gold-light: #e2c99a;
+    --serif: "Cormorant Garamond", serif; --caps: "Cormorant SC", serif; --script: "Pinyon Script", "Marck Script", cursive;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--wine-deep); }
+  .scene {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; color: var(--paper);
+    background: radial-gradient(120% 70% at 50% 35%, #6e1522 0%, var(--wine-deep) 75%);
+    opacity: 0; padding: 0 110px;
+  }
+  .frame-line { position: absolute; inset: 44px; border: 2px solid rgba(185,148,90,.55); outline: 2px solid rgba(185,148,90,.35); outline-offset: -14px; pointer-events: none; }
+  .kicker { font-family: var(--caps); letter-spacing: .3em; font-size: 34px; color: var(--gold); }
+  .title { font-family: var(--script); font-size: 190px; line-height: 1.05; color: var(--gold-light); }
+  .sub { font-family: var(--serif); font-style: italic; font-size: 50px; color: rgba(246,239,226,.85); line-height: 1.35; }
+  .quote { font-family: var(--serif); font-size: 74px; line-height: 1.25; color: var(--paper); text-wrap: balance; }
+  .quote::before { content: "«"; color: var(--gold); } .quote::after { content: "»"; color: var(--gold); }
+  .name { font-family: var(--script); font-size: 92px; color: var(--gold-light); line-height: 1.1; }
+  .years { font-family: var(--caps); font-size: 32px; letter-spacing: .25em; color: var(--gold); }
+  .rule { width: 260px; height: 2px; background: var(--gold); margin: 44px auto; position: relative; }
+  .rule::after { content: "◆"; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-52%); color: var(--gold); font-size: 22px; background: transparent; }
+  .seal {
+    width: 230px; height: 230px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 60px;
+    background: radial-gradient(circle at 35% 30%, #a02736 0%, #6e1522 55%, #3a0910 100%);
+    box-shadow: 0 0 0 12px rgba(185,148,90,.15), 0 20px 50px rgba(0,0,0,.5), inset 0 -10px 20px rgba(0,0,0,.35);
+  }
+  .seal span { font-family: var(--script); font-size: 140px; color: var(--gold-light); transform: translateY(12px); }
+  .medal {
+    width: 300px; height: 386px; border-radius: 50%; padding: 9px; margin-bottom: 56px;
+    background: linear-gradient(160deg, var(--gold-light), var(--gold) 50%, #7c5e32);
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .medal div { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center;
+    font-family: var(--script); font-size: 120px; color: var(--wine); background: radial-gradient(circle, #fbf6ec 0%, #e9dcc3 100%); }
+  .polaroid { background: #fff; padding: 22px 22px 26px; box-shadow: 0 30px 70px rgba(0,0,0,.55); margin-top: 70px; }
+  .polaroid img { display: block; width: 520px; height: 620px; object-fit: cover; }
+  .full { position: absolute; inset: 0; overflow: hidden; }
+  .full img { width: 100%; height: 100%; object-fit: cover; }
+  .shade { position: absolute; inset: 0; background: linear-gradient(to top, rgba(42,6,11,.92) 0%, rgba(42,6,11,.2) 45%, rgba(42,6,11,0) 60%); }
+  .cap { position: absolute; left: 90px; right: 90px; bottom: 210px; text-align: center; }
+  .cap .year { font-family: var(--caps); font-size: 120px; color: var(--gold-light); letter-spacing: .08em; line-height: 1; }
+  .cap .txt { font-family: var(--script); font-size: 76px; color: var(--paper); margin-top: 18px; }
+  .gift img { width: 760px; height: 760px; object-fit: cover; display: block; border: 14px solid #fff; box-shadow: 0 30px 70px rgba(0,0,0,.5); }
+  .gift .k { margin-top: 70px; }
+  .gift .t { font-family: var(--script); font-size: 96px; color: var(--gold-light); margin-top: 20px; line-height: 1.15; }
+  [data-in] { opacity: 0; }
+</style>
+</head>
+<body>
+
+<!-- 1. Opening -->
+<section class="scene" data-start="0" data-end="5.6">
+  <div class="frame-line"></div>
+  <div class="seal" data-in="0.2"><span>J</span></div>
+  <p class="kicker" data-in="1.0">Paris · 1847 — Москва · 2017</p>
+  <h1 class="title" data-in="1.6" style="margin-top:40px">Ma chère<br>Julie</h1>
+  <p class="sub" data-in="2.6" style="margin-top:40px">Письма семьи Картье — Юлии,<br>основательнице дома Juliette’s</p>
+</section>
+
+<!-- 2. Letters -->
+<section class="scene" data-start="5.6" data-end="10.6">
+  <div class="frame-line"></div>
+  <p class="quote" data-in="0.3" style="font-size:66px">Говорят, историю нашей семьи сохранили письма.</p>
+  <div class="rule" data-in="1.4"></div>
+  <p class="quote" data-in="2.0" style="font-size:66px">Теперь мы решили написать вам.</p>
+</section>
+
+<!-- 3–8. Voices -->
+<section class="scene" data-start="10.6" data-end="14.3">
+  <div class="frame-line"></div>
+  <div class="medal" data-in="0.1"><div>LF</div></div>
+  <p class="name" data-in="0.4">Луи-Франсуа Картье</p>
+  <p class="years" data-in="0.6">Основатель · 1847</p>
+  <div class="rule" data-in="0.8"></div>
+  <p class="quote" data-in="1.0">Никогда не стесняйтесь маленького.</p>
+</section>
+
+<section class="scene" data-start="14.3" data-end="18.0">
+  <div class="frame-line"></div>
+  <p class="name" data-in="0.1">Альфред Картье</p>
+  <p class="years" data-in="0.3">О семье</p>
+  <div class="rule" data-in="0.5"></div>
+  <p class="quote" data-in="0.7" style="font-size:66px">Ни один камень не держится без оправы.</p>
+  <div class="polaroid" data-in="1.1" style="transform:rotate(-2deg)"><img src="../photos/tatyana-2.jpg" style="object-position:50% 25%"></div>
+</section>
+
+<section class="scene" data-start="18.0" data-end="21.7">
+  <div class="frame-line"></div>
+  <div class="medal" data-in="0.1"><div>L</div></div>
+  <p class="name" data-in="0.4">Луи Картье</p>
+  <p class="years" data-in="0.6">Trinity · 1924</p>
+  <div class="rule" data-in="0.8"></div>
+  <p class="quote" data-in="1.0">Три металла, три цвета. У вашего дома тоже три сердца.</p>
+</section>
+
+<section class="scene" data-start="21.7" data-end="25.4">
+  <div class="frame-line"></div>
+  <p class="name" data-in="0.1">Пьер Картье</p>
+  <p class="years" data-in="0.3">О смелости</p>
+  <div class="rule" data-in="0.5"></div>
+  <p class="quote" data-in="0.7" style="font-size:66px">Мир всегда больше, чем кажется из окна.</p>
+  <div class="polaroid" data-in="1.1" style="transform:rotate(2deg)"><img src="../photos/yulia-courage.jpg" style="object-position:50% 18%"></div>
+</section>
+
+<section class="scene" data-start="25.4" data-end="29.1">
+  <div class="frame-line"></div>
+  <div class="medal" data-in="0.1"><div>J</div></div>
+  <p class="name" data-in="0.4">Жак Картье</p>
+  <p class="years" data-in="0.6">О камнях и людях</p>
+  <div class="rule" data-in="0.8"></div>
+  <p class="quote" data-in="1.0">Красота в деталях — это Juliette’s.</p>
+</section>
+
+<section class="scene" data-start="29.1" data-end="33.2">
+  <div class="frame-line"></div>
+  <p class="name" data-in="0.1">Жанна Туссен</p>
+  <p class="years" data-in="0.3">La Panthère</p>
+  <div class="rule" data-in="0.5"></div>
+  <p class="quote" data-in="0.7" style="font-size:62px">Никому не отдавайте свой вкус. И не забывайте украшать себя.</p>
+  <div class="polaroid" data-in="1.2" style="transform:rotate(-1.5deg)"><img src="../photos/yulia-blossom.jpg" style="object-position:35% 22%"></div>
+</section>
+
+<!-- 9. Montage 2017 → today -->
+<section class="scene" data-start="33.2" data-end="36.0" style="padding:0">
+  <div class="full"><img data-kb src="../photos/yulia-2017-mama.jpg" style="object-position:50% 30%"></div><div class="shade"></div>
+  <div class="cap"><p class="year" data-in="0.3">2017</p><p class="txt" data-in="0.6">Мама. С этого всё началось</p></div>
+</section>
+<section class="scene" data-start="36.0" data-end="38.6" style="padding:0">
+  <div class="full"><img data-kb src="../photos/yulia-2017-bike.jpg" style="object-position:45% 40%"></div><div class="shade"></div>
+  <div class="cap"><p class="txt" data-in="0.3">Первый браслет. Первые заказы.</p></div>
+</section>
+<section class="scene" data-start="38.6" data-end="41.4" style="padding:0">
+  <div class="full"><img data-kb src="../photos/family-today.jpg" style="object-position:50% 20%"></div><div class="shade"></div>
+  <div class="cap"><p class="year" data-in="0.3">Сегодня</p><p class="txt" data-in="0.6">Та же мама, та же дочка</p></div>
+</section>
+<section class="scene" data-start="41.4" data-end="44.0" style="padding:0">
+  <div class="full"><img data-kb src="../photos/family-selfie.jpg" style="object-position:50% 30%"></div><div class="shade"></div>
+  <div class="cap"><p class="txt" data-in="0.3">2 000 моделей · 29 000 историй</p></div>
+</section>
+
+<!-- 10. Gifts -->
+<section class="scene gift" data-start="44.0" data-end="48.0">
+  <div class="frame-line"></div>
+  <img data-in="0.1" src="../photos/earrings-1.jpg" style="object-position:50% 55%">
+  <p class="kicker k" data-in="0.5">Première · Lumière</p>
+  <p class="t" data-in="0.8">Свет — вам как женщине</p>
+</section>
+<section class="scene gift" data-start="48.0" data-end="52.0">
+  <div class="frame-line"></div>
+  <img data-in="0.1" src="../photos/earrings-2.jpg" style="background:#fff;object-fit:contain">
+  <p class="kicker k" data-in="0.5">Seconde · Union</p>
+  <p class="t" data-in="0.8">Союз — вам как основательнице</p>
+</section>
+
+<!-- 11. Finale (voice-over window) -->
+<section class="scene" data-start="52.0" data-end="56.2" style="padding:0">
+  <div class="full"><img data-kb src="../photos/us-today.jpg" style="object-position:48% 35%"></div><div class="shade"></div>
+  <div class="cap"><p class="txt" data-in="0.4" style="font-size:110px">Nous</p></div>
+</section>
+<section class="scene" data-start="56.2" data-end="60.6">
+  <div class="frame-line"></div>
+  <div class="seal" data-in="0.1"><span>J</span></div>
+  <p class="title" data-in="0.4" style="font-size:132px">С днём рождения,<br>Джульетта</p>
+  <div class="rule" data-in="1.2"></div>
+  <p class="name" data-in="1.6">Твой Мишка</p>
+  <p class="years" data-in="2.2" style="margin-top:30px">31 · 10 · 2026</p>
+</section>
+
+<script>
+  var FADE = 0.7;
+  var scenes = [].slice.call(document.querySelectorAll('.scene'));
+  function clamp(x) { return Math.max(0, Math.min(1, x)); }
+  function ease(x) { return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2; }
+  window.render = function (t) {
+    scenes.forEach(function (s) {
+      var a = +s.dataset.start, b = +s.dataset.end;
+      var o = Math.min(clamp((t - a) / FADE), clamp((b - t) / FADE));
+      if (a === 0) o = Math.min(clamp(t / 0.6), clamp((b - t) / FADE));
+      s.style.opacity = ease(o);
+      s.style.visibility = o > 0 ? 'visible' : 'hidden';
+      var local = t - a;
+      s.querySelectorAll('[data-in]').forEach(function (el) {
+        var p = ease(clamp((local - +el.dataset.in) / 0.8));
+        el.style.opacity = p;
+        var base = el.style.getPropertyValue('--base') || (el.dataset.base = el.dataset.base || el.style.transform || '');
+        el.style.transform = (el.dataset.base || '') + ' translateY(' + (1 - p) * 28 + 'px)';
+      });
+      s.querySelectorAll('[data-kb]').forEach(function (img) {
+        var p = clamp(local / (b - a));
+        img.style.transform = 'scale(' + (1.04 + p * 0.1) + ')';
+      });
+    });
+  };
+  window.DURATION = 60;
+  render(0);
+</script>
+</body>
+</html>
