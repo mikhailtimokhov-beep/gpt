@@ -1,0 +1,479 @@
+<title>Falcon-Bike Новый облик</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Электроэндуро Falcon и Y-Volt от официального дилера 79Bike: шесть моделей, гарантия, запчасти и сервис в России.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;800&family=Golos+Text:wght@400;500;600&display=swap">
+<style>
+/* «Закреплённый постер»: фраза держит место, байки проезжают под ней. Белая студия, синие буквы, чёрные листы, жёлтый — только действие.
+   Один светлый облик: студийные фото сняты на белом, поэтому тёмной темы нет намеренно. */
+:root{
+  color-scheme:light;
+  --bg:#ffffff; --surface:#f2f2ef; --ink:#1f2b4d; --muted:#5d6479;
+  --accent:#f4c300; --accent-ink:#141a2e;
+  --field-1:#07090d; --field-1-ink:#ffffff; --field-1-soft:#b9bdc8;
+  --field-2:#e3e1dc; --field-2-ink:#1f2b4d;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --text:"Golos Text",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --step-small:.9375rem;
+  --step-body:clamp(1.0625rem,1rem + .25vw,1.1875rem);
+  --step-lead:clamp(1.375rem,.9rem + 1.3vw,2rem);
+  --step-head:clamp(1.875rem,.6rem + 4.9vw,5rem);
+  --step-huge:clamp(3rem,1rem + 6.8vw,8rem);
+  --m:max(16px,env(safe-area-inset-left,0px)); --mr:max(16px,env(safe-area-inset-right,0px));
+  --gap:clamp(120px,14vw,220px);
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+@media (min-width:900px){:root{--m:max(32px,env(safe-area-inset-left,0px));--mr:max(32px,env(safe-area-inset-right,0px))}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--ink);font:400 var(--step-body)/1.55 var(--text);-webkit-font-smoothing:antialiased;overflow-x:clip}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--bg)}
+h1,h2,h3,p{margin:0}
+h1,h2,h3{font-family:var(--display);font-weight:800;letter-spacing:-.02em;line-height:.98;text-wrap:balance;text-transform:uppercase}
+a{color:inherit}
+img{display:block;max-width:100%;height:auto}
+:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+::selection{background:var(--accent);color:var(--accent-ink)}
+.wrap{padding-left:var(--m);padding-right:var(--mr)}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:.6em;min-height:48px;padding:0 22px;border:0;border-radius:0;background:var(--accent);color:var(--accent-ink);font:600 var(--step-small)/1 var(--text);text-decoration:none;cursor:pointer;transition:transform .18s var(--ease),background-color .18s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- шапка ---------- */
+.nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:64px;background:var(--bg);font-size:var(--step-small)}
+.nav__mark{font:800 var(--step-small)/1 var(--display);letter-spacing:-.01em;text-decoration:none;text-transform:uppercase;white-space:nowrap}
+.nav__links{display:flex;align-items:center;gap:clamp(14px,2.2vw,32px)}
+.nav__links a:not(.btn){text-decoration:underline 2px transparent;text-underline-offset:6px;padding:8px 0;transition:text-decoration-color .2s}
+.nav__links a:not(.btn):hover{text-decoration-color:currentColor}
+.nav .btn{min-height:40px;padding:0 16px}
+@media (max-width:760px){.nav__links a.hide-s,.nav__links a.hide-p{display:none}}
+
+/* ---------- первый экран: фраза, разрезанная кадром; байки проезжают сквозь кадр ---------- */
+.hero{position:relative;height:250svh}
+.hero__stage{position:sticky;top:calc(64px + env(safe-area-inset-top,0px));height:calc(100svh - 64px - env(safe-area-inset-top,0px));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,62vw) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;row-gap:20px;padding-block:12px 24px}
+.hero h1{grid-row:1/4;grid-column:1/4;display:grid;grid-template-rows:subgrid;grid-template-columns:subgrid;font-size:var(--step-head);letter-spacing:-.025em;pointer-events:none}
+.hero h1 span{grid-column:1/4}
+.hero h1 .l2{grid-row:3;justify-self:end}
+.reel{grid-row:2;grid-column:2;align-self:center;position:relative;width:100%;aspect-ratio:16/9;max-height:100%;justify-self:center;overflow:hidden;background:var(--surface)}
+.reel__track{position:absolute;inset:0;display:flex;will-change:transform}
+.reel__frame{flex:none;width:100%;height:100%;display:grid;place-items:center;background:var(--surface)}
+.reel__frame img{width:auto;height:92%;max-width:92%;object-fit:contain;mix-blend-mode:multiply}
+.hero__lede{grid-row:2;grid-column:1;align-self:end;padding-right:24px;max-width:30ch;font-size:max(18px,var(--step-body))}
+.hero__cta{grid-row:2;grid-column:3;align-self:end;justify-self:end;display:grid;justify-items:end;gap:12px;text-align:right;padding-left:24px}
+.hero__cap{font-size:var(--step-small);color:var(--muted);min-height:3em}
+.hero__cap b{color:var(--ink);font-weight:600;display:block}
+@media (max-width:900px){
+  .hero__stage{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto;align-content:center;row-gap:16px}
+  .hero h1{grid-row:1;grid-column:1;display:block}
+  .hero h1 .l2{display:none}
+  .hero__lede{grid-row:2;grid-column:1;padding:0;max-width:none}
+  .reel{grid-row:3;grid-column:1;aspect-ratio:4/3}
+  .hero__cta{grid-row:4;grid-column:1;justify-self:start;justify-items:start;text-align:left;padding:0}
+  .hero__cap{min-height:0}
+}
+
+/* ---------- витрина: один кадр, три расстояния ---------- */
+.show{position:relative;height:190vh;margin-top:var(--gap)}
+.show__stage{position:sticky;top:64px;height:calc(100svh - 64px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,30vw) minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);column-gap:32px;row-gap:24px;padding-block:16px 32px}
+.show__h{grid-row:1;grid-column:1/4;font-size:var(--step-head);text-align:center}
+.show__frame{grid-column:2;grid-row:2;aspect-ratio:4/5;height:100%;max-width:100%;justify-self:center;overflow:hidden;background:var(--surface)}
+.show__frame img{width:100%;height:100%;object-fit:cover;transform-origin:var(--ox,50%) var(--oy,50%);transform:scale(var(--z,1));transition:transform .9s var(--ease)}
+.show__price{font:800 var(--step-lead)/1.1 var(--display);margin-bottom:10px}
+.show__side{grid-column:3;grid-row:2;align-self:start;max-width:28ch;transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.show__note{grid-column:1;grid-row:2;align-self:end;justify-self:end;text-align:right;max-width:24ch;color:var(--muted);font-size:var(--step-small)}
+.show__marks{position:absolute;inset:0;display:grid;grid-template-rows:repeat(3,1fr);pointer-events:none}
+.js .show:not([data-stage="2"]) .show__side{opacity:0;transform:translateX(16px)}
+.show[data-stage="1"] .show__frame img{--z:1.9;--ox:84%;--oy:30%}
+.show[data-stage="2"] .show__frame img{--z:2.6;--ox:52%;--oy:58%}
+@media (max-width:760px){
+  .show{height:auto}
+  .show__stage{position:relative;top:0;height:auto;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto auto}
+  .show__h{grid-row:1;grid-column:1}
+  .show__frame{grid-column:1;grid-row:2;width:78vw;height:auto}
+  .show__side{grid-column:1;grid-row:3;max-width:none}
+  .show__note{grid-column:1;grid-row:4;justify-self:start;text-align:left;max-width:none}
+  .js .show .show__side{opacity:1!important;transform:none!important}
+  .show__marks{display:none}
+}
+
+/* ---------- подбор по росту (живая штука) ---------- */
+.fit{margin-top:var(--gap);display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(24px,4vw,64px);align-items:center}
+.fit h2{font-size:var(--step-head)}
+.fit__intro{display:grid;gap:24px;align-content:start}
+.fit__ctrl{display:grid;gap:10px}
+.fit__ctrl label{font-weight:600}
+.fit__row{display:flex;align-items:baseline;gap:16px}
+.fit__out{font:800 var(--step-head)/1 var(--display);letter-spacing:-.03em}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+input[type=range]{width:100%;height:44px;accent-color:var(--ink);cursor:pointer}
+.fit__pick{display:grid;gap:12px}
+.fit__img{background:var(--surface);aspect-ratio:16/10;display:grid;place-items:center;overflow:hidden}
+.fit__img img{width:92%;mix-blend-mode:multiply;transition:opacity .25s var(--ease),transform .4s var(--ease)}
+.fit__img img.swap{opacity:0;transform:translateX(-24px)}
+.fit__why{font-size:var(--step-lead);line-height:1.3;max-width:34ch}
+.fit__why b{font-weight:600}
+.fit__list{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.fit__list li{display:grid;gap:2px;padding:12px 14px;background:var(--surface);font-size:var(--step-small);transition:background-color .2s}
+.fit__list li b{font-size:var(--step-body);font-weight:600}
+.fit__list li[data-s="ok"]{background:var(--field-2)}
+.fit__list li[data-s="best"]{background:var(--ink);color:#fff}
+.fit__list li[data-s="no"]{color:var(--muted)}
+@media (max-width:900px){.fit{grid-template-columns:minmax(0,1fr)}.fit__list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---------- технологии: четыре цветных листа во всю ширину, фото чередуется ---------- */
+.tech{margin-top:var(--gap)}
+.tech>h2{font-size:var(--step-head);margin-bottom:48px}
+.sheet{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-height:80svh;background:var(--sb);color:var(--si)}
+.sheet__t{display:grid;align-content:space-between;gap:48px;padding:clamp(28px,4vw,56px) 32px clamp(32px,4vw,56px) var(--m)}
+.sheet h3{font-size:var(--step-head)}
+.sheet__lead{max-width:24ch;font-size:var(--step-lead);line-height:1.25}
+.sheet__copy{display:grid;gap:16px}
+.sheet__body{max-width:44ch}
+.sheet figure{margin:0;overflow:hidden}
+.sheet figure img{width:100%;height:100%;object-fit:cover;transition:transform 1.2s var(--ease)}
+.sheet:hover figure img{transform:scale(1.04)}
+.sheet:nth-of-type(even) .sheet__t{order:2;padding:clamp(28px,4vw,56px) var(--mr) clamp(32px,4vw,56px) 32px}
+.sheet--a{--sb:var(--field-1);--si:var(--field-1-ink)}
+.sheet--b{--sb:var(--field-2);--si:var(--field-2-ink)}
+.sheet--c{--sb:var(--ink);--si:#fff}
+.sheet--d{--sb:var(--accent);--si:var(--accent-ink)}
+@media (max-width:760px){
+  .sheet{grid-template-columns:minmax(0,1fr);min-height:0}
+  .sheet figure{aspect-ratio:4/3}
+  .sheet .sheet__t,.sheet:nth-of-type(even) .sheet__t{order:2;padding:28px var(--mr) 36px var(--m);gap:20px}
+}
+
+/* ---------- линейка одним кеглем ---------- */
+.line{margin-top:var(--gap);background:var(--field-1);color:var(--field-1-ink);padding-block:clamp(72px,9vw,140px)}
+.line h2{font-size:var(--step-lead);margin-bottom:40px}
+.line table{width:100%;border-collapse:collapse;font:500 var(--step-lead)/1.6 var(--text);letter-spacing:-.01em}
+.line thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.line td{padding:0;white-space:nowrap}
+.line td:first-child{width:36%}
+.line td:nth-child(2),.line th:nth-child(2){width:22%}
+.line td:nth-child(3),.line th:nth-child(3){width:20%}
+.line td:last-child,.line th:last-child{text-align:right}
+.line tr.soon td{color:var(--field-1-soft)}
+.line tbody tr{transition:color .2s}
+.line tbody tr:hover td:first-child{color:var(--accent)}
+.line a{text-decoration:none}
+.line__foot{margin-top:40px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;color:var(--field-1-soft);font-size:var(--step-small)}
+@media (max-width:760px){
+  .line thead{display:none}
+  .line table,.line tbody,.line tr,.line td{display:block;width:auto!important}
+  .line tr{display:grid;grid-template-columns:1fr auto;padding-block:9px}
+  .line td:first-child{grid-column:1/-1}
+  .line td:nth-child(2),.line td:nth-child(3){display:inline;font-size:var(--step-small);color:var(--field-1-soft)}
+  .line td:nth-child(2){grid-row:2;grid-column:1}
+  .line td:nth-child(3){display:none}
+  .line td:last-child{grid-row:2;grid-column:2;font-size:var(--step-small);text-align:right}
+}
+
+/* ---------- как купить: по глаголу на экран ---------- */
+.verbs{position:relative}
+.verb{position:relative;height:92svh;overflow:clip;display:grid;place-items:center}
+.verb>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.verb h3{position:relative;text-align:center;font-size:var(--step-huge);letter-spacing:-.04em;line-height:1.05;color:#fff;z-index:1;padding:.1em .25em;background:rgba(7,9,13,.55)}
+.verb p{position:absolute;left:0;bottom:0;max-width:min(46ch,90vw);padding:28px var(--m) 32px;font-size:var(--step-body);color:#fff;background:rgba(7,9,13,.72);z-index:2}
+.verb p b{display:block;font-weight:600;margin-bottom:4px}
+.verbs__h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.verb .verb__d{left:auto;right:0;max-width:min(30ch,90vw);text-align:right}
+@media (max-width:760px){.verb h3{font-size:10vw}.verb p{max-width:none;right:0}.verb .verb__d{display:none}}
+
+/* ---------- вопросы: ответы как текст ---------- */
+.faq{margin-top:var(--gap);display:grid;grid-template-columns:minmax(0,3fr) minmax(0,9fr);gap:32px}
+.faq h2{font-size:var(--step-lead)}
+.faq__text{columns:2;column-gap:56px;line-height:1.55}
+.faq__text p{break-inside:avoid;margin-bottom:20px}
+.faq__text b{font-weight:600}
+@media (max-width:900px){.faq{grid-template-columns:minmax(0,1fr)}.faq__text{columns:1}}
+
+/* ---------- контакт: телефон как заголовок ---------- */
+.call{margin-top:var(--gap);min-height:100svh;background:var(--field-1);color:var(--field-1-ink);display:grid;grid-template-rows:auto 1fr auto;padding-block:clamp(40px,6vw,72px) 32px}
+.call__say{max-width:30ch;font-size:var(--step-lead);line-height:1.3}
+.call h2{align-self:end;margin-bottom:8vh;font-size:clamp(2rem,.4rem + 7.6vw,9rem);letter-spacing:-.04em;white-space:nowrap}
+.call h2 a{text-decoration:none;transition:color .2s}
+.call h2 a:hover{color:var(--accent)}
+.call__foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px;font-size:var(--step-small);color:var(--field-1-soft)}
+.call__foot div{display:flex;flex-wrap:wrap;gap:12px 24px}
+.call__foot a{color:var(--field-1-ink);text-decoration:none}
+.call__foot a:hover{color:var(--accent)}
+@media (max-width:760px){.call{min-height:86svh}.call h2{font-size:var(--step-head);white-space:normal}.call__foot,.call__foot div{flex-direction:column}}
+
+/* ---------- подвал ---------- */
+.foot{display:grid;grid-template-columns:1fr 1fr;min-height:100svh;background:var(--field-2);color:var(--field-2-ink)}
+.foot figure{margin:0;overflow:hidden}
+.foot figure img{width:100%;height:100%;object-fit:cover;object-position:30% 60%}
+.foot__menu{display:grid;align-content:start;gap:64px;padding:80px var(--mr) 32px clamp(24px,6vw,96px)}
+.foot__mark{font:800 var(--step-small)/1 var(--display);text-transform:uppercase}
+.foot nav{display:grid;gap:22px}
+.foot nav a{font:800 var(--step-lead)/1 var(--display);text-transform:uppercase;letter-spacing:-.02em;text-decoration:none;transition:transform .25s var(--ease),color .25s}
+.foot nav:hover a{color:var(--muted)}
+.foot nav a:hover{color:var(--ink);transform:translateX(12px)}
+.foot__cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;font-size:var(--step-small)}
+.foot__legal{align-self:end;font-size:var(--step-small);color:var(--muted)}
+@media (max-width:760px){.foot{grid-template-columns:minmax(0,1fr)}.foot figure{height:50svh}.foot__menu{padding:40px var(--m) 32px}.foot nav a{font-size:var(--step-lead)}.foot__cols{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- появление частей секций ---------- */
+@supports (animation-timeline:view()){
+  @media (prefers-reduced-motion:no-preference){
+    [data-rise]>*{animation:rise linear both;animation-timeline:view();animation-range:entry 0% entry 55%}
+    [data-rise]>*:nth-child(2){animation-range:entry 8% entry 63%}
+    [data-rise]>*:nth-child(3){animation-range:entry 16% entry 71%}
+    [data-rise]>*:nth-child(4){animation-range:entry 24% entry 79%}
+    .verb>img{animation:drift linear both;animation-timeline:view()}
+  }
+}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+@keyframes drift{from{transform:scale(1.12)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important}.show__frame img{transform:none!important}}
+</style>
+
+<header class="nav wrap">
+  <a class="nav__mark" href="#top">79Bike · Falcon</a>
+  <nav class="nav__links" aria-label="Разделы">
+    <a href="#line" class="hide-s">Модели</a>
+    <a href="#fit" class="hide-p">Подбор по росту</a>
+    <a href="#buy" class="hide-s">Шоурум</a>
+    <a href="#faq" class="hide-s">Вопросы</a>
+    <a class="btn" href="#call">Позвонить</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="hero wrap" aria-labelledby="hero-h">
+    <div class="hero__stage">
+      <h1 id="hero-h"><span class="l1">Электроэндуро Falcon</span> <span class="l2">от&nbsp;280&nbsp;000&nbsp;₽</span></h1>
+      <div class="reel" role="img" aria-label="Шесть моделей Falcon и Y-Volt по очереди проезжают через кадр"></div>
+      <p class="hero__lede">Электромотоциклы для бездорожья от официального дилера 79Bike: шесть моделей, гарантия и сервис в России, доставка СДЭК.</p>
+      <div class="hero__cta">
+        <p class="hero__cap" id="reelCap" aria-live="polite"><b>Falcon Lite</b>8 кВт · 280 000 ₽</p>
+        <a class="btn" href="#fit">Подобрать по росту</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="show wrap" id="surge" data-stage="0" aria-labelledby="show-h">
+    <div class="show__stage">
+      <h2 class="show__h" id="show-h">Surge V · 35 кВт</h2>
+      <p class="show__note">Y-Volt Surge V на площадке у шоурума.</p>
+      <div class="show__frame"><img src="img/surge-v-white-4.webp" width="1080" height="810" alt="Белый Y-Volt Surge V сбоку на брусчатке" loading="lazy"></div>
+      <div class="show__side"><p class="show__price">495 000 ₽</p><p>Полноразмерный эндуро для профессионалов: 948 Н·м, вилка Fastace с ходом 245 мм, колёса 19 и 18 дюймов. Заряжается за 3 часа.</p></div>
+    </div>
+    <div class="show__marks" aria-hidden="true"><i data-mark="0"></i><i data-mark="1"></i><i data-mark="2"></i></div>
+  </section>
+
+  <section class="fit wrap" id="fit" aria-labelledby="fit-h">
+    <div class="fit__intro" data-rise>
+      <h2 id="fit-h">Байк под ваш рост</h2>
+      <p>Сиденье у Falcon от 820 до 900 мм. Поставьте свой рост на шкале: покажем, где вы уверенно стоите на земле, а где только на носках.</p>
+      <div class="fit__ctrl">
+        <label for="h" class="vh">Ваш рост, см</label>
+        <div class="fit__row"><output class="fit__out tnum" id="hOut" for="h">175 см</output></div>
+        <input type="range" id="h" min="150" max="200" step="1" value="175">
+      </div>
+    </div>
+    <div class="fit__pick" aria-live="polite">
+      <div class="fit__img"><img id="fitImg" src="img/pro-black-yellow-1.webp" width="1600" height="1091" alt="Falcon Pro сбоку" loading="lazy"></div>
+      <p class="fit__why" id="fitWhy"><b>Falcon Pro</b> · сиденье 820 мм, 59 кг. При росте 175 см ноги уверенно достают до земли.</p>
+      <ul class="fit__list" id="fitList">
+        <li data-s="ok"><b>Falcon Lite</b>820 мм · от 165 см</li>
+        <li data-s="best"><b>Falcon Pro</b>820 мм · от 165 см</li>
+        <li data-s="ok"><b>Falcon GT</b>830 мм · от 170 см</li>
+        <li data-s="ok"><b>Lynx Trail</b>830 мм · от 170 см</li>
+        <li data-s="ok"><b>Lynx X</b>870 мм · от 175 см</li>
+        <li data-s="no"><b>Surge V</b>900 мм · от 180 см</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="tech" aria-labelledby="tech-h">
+    <h2 class="wrap" id="tech-h">Что внутри Falcon</h2>
+    <article class="sheet sheet--a">
+      <div class="sheet__t" data-rise><h3>Тяга сразу</h3>
+      <div class="sheet__copy"><p class="sheet__lead">Момент приходит вместе с газом.</p><p class="sheet__body">Контроллер 79Bike FOC с искусственным интеллектом следит за газом, скоростью и током и подстраивает отдачу мотора под вашу манеру езды. Режимы Eco, Drive и Sport.</p></div></div>
+      <figure><img src="img/surge-v-white-9.webp" width="1080" height="810" alt="Мотор и цепь электромотоцикла крупным планом" loading="lazy"></figure>
+    </article>
+    <article class="sheet sheet--b">
+      <div class="sheet__t" data-rise><h3>Подвеска Fastace</h3>
+      <div class="sheet__copy"><p class="sheet__lead">Перевёрнутая вилка с ходом 200 мм.</p><p class="sheet__body">Сжатие и отскок регулируются: подвеску настраивают под свой вес, манеру езды и покрытие. У Surge V ход вилки 245 мм.</p></div></div>
+      <figure><img src="img/surge-v-white-8.webp" width="1080" height="810" alt="Задний амортизатор Fastace и подножка крупным планом" loading="lazy"></figure>
+    </article>
+    <article class="sheet sheet--c">
+      <div class="sheet__t" data-rise><h3>Батарея 72 В, IP67</h3>
+      <div class="sheet__copy"><p class="sheet__lead">Дождь и лужи не помеха.</p><p class="sheet__body">Аккумуляторы на элементах Samsung и LG, система управления защищает от перегрева и перезаряда. Полный заряд за 3–4 часа.</p></div></div>
+      <figure><img src="img/lynx-black-yellow-2.webp" width="1600" height="1123" alt="Falcon Lynx Trail в чёрно-жёлтой расцветке, вид три четверти спереди" loading="lazy"></figure>
+    </article>
+    <article class="sheet sheet--d">
+      <div class="sheet__t" data-rise><h3>Задний ход</h3>
+      <div class="sheet__copy"><p class="sheet__lead">Байк сам сдаёт назад.</p><p class="sheet__body">Выкатить из гаража или развернуться на узкой тропе можно без толкания руками. LED-фара сама переключает дневной и ночной режим, запуск по NFC-метке у всех моделей, кроме Lite.</p></div></div>
+      <figure><img src="img/surge-v-white-7.webp" width="1080" height="720" alt="Передняя маска с LED-фарой крупным планом" loading="lazy"></figure>
+    </article>
+  </section>
+
+  <section class="line" id="line" aria-labelledby="line-h">
+    <div class="wrap">
+      <h2 id="line-h">Вся линейка</h2>
+      <table>
+        <thead><tr><th scope="col">Модель</th><th scope="col">Мощность</th><th scope="col">Скорость</th><th scope="col">Цена</th></tr></thead>
+        <tbody class="tnum">
+          <tr><td>Falcon Lite</td><td>8 кВт</td><td>84 км/ч</td><td>280 000 ₽</td></tr>
+          <tr><td>Falcon Pro</td><td>10 кВт</td><td>90 км/ч</td><td>310 000 ₽</td></tr>
+          <tr><td>Falcon Lynx Trail</td><td>10 кВт</td><td>90 км/ч</td><td>355 000 ₽</td></tr>
+          <tr><td>Falcon GT</td><td>17 кВт</td><td>95 км/ч</td><td>372 000 ₽</td></tr>
+          <tr><td>Y-Volt Surge V</td><td>35 кВт</td><td>109 км/ч</td><td>495 000 ₽</td></tr>
+          <tr class="soon"><td>Falcon Lynx X</td><td>25,9 кВт</td><td>100 км/ч</td><td>в 2027</td></tr>
+        </tbody>
+      </table>
+      <div class="line__foot">
+        <a class="btn" href="#call">Узнать наличие</a>
+        <span>Рассрочка Т-Банк и POSCREDIT на 6, 12 или 24 месяца.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="verbs" id="buy" aria-labelledby="buy-h">
+    <h2 class="verbs__h" id="buy-h">Как купить</h2>
+    <div class="verb">
+      <img src="img/surge-v-grey-4.webp" width="1600" height="1200" alt="Байки в шоуруме 79Bike" loading="lazy">
+      <h3>Смотрите</h3>
+      <p><b>Шоурум в Москве, «Речников 21»</b>Покажем байки вживую. По предварительной записи, с 12:00 до 20:00.</p>
+      <p class="verb__d"><b>Все шесть моделей</b>Lite, Pro, Lynx Trail, GT, Surge V и предсерийный Lynx X.</p>
+    </div>
+    <div class="verb">
+      <img src="img/surge-v-white-5.webp" width="1080" height="810" alt="Surge V на открытой площадке" loading="lazy">
+      <h3>Катайтесь</h3>
+      <p><b>Тест-драйв по записи</b>Подготовим нужную модель и дадим проехать, прежде чем вы решите.</p>
+      <p class="verb__d"><b>Настроим под вас</b>Вилку Fastace регулируют под вес райдера и покрытие.</p>
+    </div>
+    <div class="verb">
+      <img src="img/surge-v-white-6.webp" width="1080" height="810" alt="Surge V вид сзади на брусчатке" loading="lazy">
+      <h3>Получайте</h3>
+      <p><b>СДЭК по всей России</b>До пункта выдачи или курьером до двери. Оплата картой, по счёту или в рассрочку.</p>
+      <p class="verb__d"><b>Гарантия 6 месяцев</b>На контроллер, батарею, двигатель и раму. Запчасти в наличии.</p>
+    </div>
+  </section>
+
+  <section class="faq wrap" id="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h">Частые вопросы</h2>
+    <div class="faq__text" data-rise>
+      <p><b>Нужны ли права и регистрация?</b> Байки Falcon и Y-Volt продаются как спортивный инвентарь для бездорожья и закрытых площадок. Выезд на дороги общего пользования регулирует местное законодательство.</p>
+      <p><b>Сколько проедет на одном заряде?</b> Falcon Lite проедет 60–80 км, GT, Pro и Lynx Trail 60–120 км, Lynx X до 128 км, Surge V до 120 км. В Eco вы проедете больше, чем в Sport.</p>
+      <p><b>Сколько заряжается?</b> Lite и Surge V за 3 часа, GT и Pro за 3,5, Lynx Trail и Lynx X за 4. Только штатным зарядным устройством.</p>
+      <p><b>Можно ли в дождь?</b> Да, влагозащита IP67. Не мойте байк под сильным напором и не заезжайте в глубокий брод.</p>
+      <p><b>Какая гарантия?</b> 6 месяцев на контроллер, батарею, двигатель и раму. Ремонт и техподдержка в России.</p>
+      <p><b>Чем официальный байк лучше «серого»?</b> Байки, ввезённые в обход представительства 79Bike, блокируются после активации, и разблокировать их нельзя. Официальный приходит с гарантией и запчастями.</p>
+      <p><b>Как оплатить?</b> Картой онлайн через ЮKassa, по счёту для организаций или при получении в Москве и ближайших городах. Рассрочка Т-Банк или POSCREDIT на 6, 12 или 24 месяца.</p>
+      <p><b>Байк приедет собранным?</b> Сборку и настройку делаем по запросу. Для каждой модели есть инструкция, а техподдержка подскажет по телефону.</p>
+      <p><b>Где брать запчасти?</b> У нас: держим запчасти и расходники в наличии в России и отправляем в регионы СДЭК.</p>
+      <p><b>Можно ли вернуть байк?</b> Электромотоцикл относится к технически сложным товарам, возврат не предусмотрен. Поэтому сначала приезжайте на тест-драйв.</p>
+    </div>
+  </section>
+
+  <section class="call wrap" id="call" aria-labelledby="call-h">
+    <p class="call__say">Позвоните: подберём модель, расскажем о наличии и запишем на тест-драйв.</p>
+    <h2 id="call-h"><a href="tel:+79999005588">+7 999 900-55-88</a></h2>
+    <div class="call__foot">
+      <div><span>Москва, «Речников 21»</span><span>12:00–20:00, по записи</span></div>
+      <div><a href="https://t.me/Meliso_group" target="_blank" rel="noopener">Telegram</a><a href="https://wa.me/79999005588" target="_blank" rel="noopener">WhatsApp</a><a href="https://vk.com/79bike" target="_blank" rel="noopener">ВКонтакте</a><a href="https://rutube.ru/channel/65461061/" target="_blank" rel="noopener">Rutube</a></div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <figure><img src="img/surge-v-grey-1.webp" width="1600" height="1200" alt="Y-Volt Surge V в шоуруме на фоне стены 79Bike" loading="lazy"></figure>
+  <div class="foot__menu">
+    <p class="foot__mark">79Bike · Falcon</p>
+    <nav aria-label="Меню в подвале">
+      <a href="#line">Модели</a><a href="#fit">Подбор по росту</a><a href="#surge">Surge V</a><a href="#buy">Шоурум</a><a href="#faq">Вопросы</a><a href="#call">Контакты</a>
+    </nav>
+    <div class="foot__cols">
+      <p>+7 999 900-55-88<br>Москва, «Речников 21»<br>12:00–20:00, по записи</p>
+      <p>Официальный магазин представительства 79Bike в России. Гарантия, сервис и запчасти здесь.</p>
+    </div>
+    <p class="foot__legal">ИП Тимохов М. С., ИНН 772472913812, ОГРН 323774600734207 · 2026</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  document.documentElement.classList.add('js');
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var M = [
+    {n:'Falcon Lite', k:'8 кВт', p:'280 000 ₽', img:'light-black-1', w:1600, h:1123, seat:820, kg:63, ok:true},
+    {n:'Falcon Pro', k:'10 кВт', p:'310 000 ₽', img:'pro-black-yellow-1', w:1600, h:1091, seat:820, kg:59, ok:true},
+    {n:'Falcon Lynx Trail', k:'10 кВт', p:'355 000 ₽', img:'lynx-black-yellow-1', w:1600, h:1123, seat:830, kg:69, ok:true},
+    {n:'Falcon GT', k:'17 кВт', p:'372 000 ₽', img:'gt-black-1', w:1600, h:1123, seat:830, kg:69, ok:true},
+    {n:'Y-Volt Surge V', k:'35 кВт', p:'495 000 ₽', img:'surge-v-white-1', w:1080, h:720, seat:900, kg:95, ok:true},
+    {n:'Falcon Lynx X', k:'25,9 кВт', p:'старт продаж в 2027', img:'lynx-x-black-1', w:800, h:575, seat:870, kg:83, ok:false}
+  ];
+
+  /* --- лента в первом экране: байки проезжают слева направо, пока фраза стоит --- */
+  var reel = document.querySelector('.reel'), cap = document.getElementById('reelCap'), hero = document.querySelector('.hero');
+  var track = document.createElement('div'); track.className = 'reel__track';
+  M.forEach(function(m, i){
+    var f = document.createElement('div'); f.className = 'reel__frame';
+    var im = new Image(m.w, m.h); im.src = 'img/' + m.img + '.webp'; im.alt = ''; if (i > 1) im.loading = 'lazy';
+    f.appendChild(im); track.appendChild(f);
+  });
+  reel.appendChild(track);
+  var cur = -1;
+  function setCap(i){ if (i === cur) return; cur = i; var m = M[i]; cap.innerHTML = '<b>' + m.n + '</b>' + m.k + ' · ' + m.p; }
+  function onHero(){
+    var r = hero.getBoundingClientRect(), run = hero.offsetHeight - (window.innerHeight - 64);
+    var p = Math.min(1, Math.max(0, -r.top / Math.max(1, run)));
+    var raw = p * (M.length - 1), i = Math.floor(raw), f = raw - i;
+    var t = Math.min(1, Math.max(0, (f - .45) / .55)); t = t * t * (3 - 2 * t);
+    var pos = Math.min(M.length - 1, i + t);
+    track.style.transform = 'translateX(' + (-pos * 100) + '%)';
+    setCap(Math.round(pos));
+  }
+
+  /* --- витрина Surge V: три расстояния --- */
+  var show = document.getElementById('surge');
+  var marks = show.querySelectorAll('[data-mark]');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if (e.isIntersecting) show.dataset.stage = e.target.dataset.mark; });
+    }, {rootMargin:'-50% 0px -50% 0px'});
+    marks.forEach(function(m){ io.observe(m); });
+  } else show.dataset.stage = '2';
+
+  /* --- подбор по росту: ориентир как в прототипе — сиденье не выше половины роста --- */
+  var h = document.getElementById('h'), out = document.getElementById('hOut'), img = document.getElementById('fitImg'),
+      why = document.getElementById('fitWhy'), list = document.getElementById('fitList');
+  var order = [0,1,3,2,5,4], short = ['Falcon Lite','Falcon Pro','Falcon GT','Lynx Trail','Lynx X','Surge V'];
+  function minH(seat){ return Math.ceil(seat / 10 / 0.5 / 5) * 5; }
+  function fit(){
+    var v = +h.value; out.textContent = v + ' см';
+    var best = null;
+    M.forEach(function(m){ if (m.ok && v >= minH(m.seat)) { if (!best || m.seat > best.seat || (m.seat === best.seat && m.kg < best.kg)) best = m; } });
+    var lis = '';
+    order.forEach(function(i, k){
+      var m = M[i], need = minH(m.seat), s = m === best ? 'best' : (v >= need ? 'ok' : 'no');
+      lis += '<li data-s="' + s + '"><b>' + short[k] + '</b>' + m.seat + ' мм · ' + (v >= need ? 'подходит' : 'от ' + need + ' см') + (m.ok ? '' : ' · 2027') + '</li>';
+    });
+    list.innerHTML = lis;
+    if (best) {
+      var src = 'img/' + best.img + '.webp';
+      if (img.getAttribute('src') !== src) {
+        img.classList.add('swap');
+        setTimeout(function(){ img.src = src; img.width = best.w; img.height = best.h; img.alt = best.n + ' сбоку'; img.classList.remove('swap'); }, reduce ? 0 : 200);
+      }
+      why.innerHTML = '<b>' + best.n + '</b> · сиденье ' + best.seat + ' мм, ' + best.kg + ' кг, ' + best.p + '. При росте ' + v + ' см ноги уверенно достают до земли.';
+    } else {
+      why.innerHTML = 'При росте ' + v + ' см все сиденья высоковаты: ближе всех <b>Falcon Pro</b>, 820 мм и 59 кг. Приезжайте примерить: настроим подвеску под вас.';
+    }
+  }
+  h.addEventListener('input', fit);
+
+  var ticking = false;
+  function onScroll(){ if (!ticking) { ticking = true; requestAnimationFrame(function(){ ticking = false; onHero(); }); } }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll);
+  fit(); onHero();
+})();
+</script>
