@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Ma chère Julie — film II</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Cormorant+SC:wght@500;600&family=Pinyon+Script&family=Marck+Script&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3ead8; --ink: #2b1b14; --sepia: #3b2a1f; --wine: #5e101b; --wine-deep: #22060a;
+    --gold: #b9945a; --gold-light: #e2c99a;
+    --serif: "Cormorant Garamond", serif; --caps: "Cormorant SC", serif;
+    --script: "Pinyon Script", "Marck Script", cursive; --hand: "Marck Script", cursive;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1080px; height: 1920px; overflow: hidden; background: #000; }
+  .scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 100px; }
+  .bg-wine { background: radial-gradient(120% 70% at 50% 35%, #6e1522 0%, var(--wine-deep) 78%); color: var(--paper); }
+  .bg-sepia { background: radial-gradient(110% 75% at 50% 30%, #6b5440 0%, #2f2219 70%, #160f0a 100%); color: var(--paper); }
+  .bg-black { background: radial-gradient(90% 60% at 50% 45%, #1b1514 0%, #050404 80%); color: var(--paper); }
+  .frame-line { position: absolute; inset: 44px; border: 2px solid rgba(185,148,90,.5); outline: 2px solid rgba(185,148,90,.3); outline-offset: -14px; pointer-events: none; }
+  .kicker { font-family: var(--caps); letter-spacing: .3em; font-size: 32px; color: var(--gold); }
+  .title { font-family: var(--script); font-size: 190px; line-height: 1.05; color: var(--gold-light); }
+  .sub { font-family: var(--serif); font-style: italic; font-size: 48px; color: rgba(243,234,216,.85); line-height: 1.35; }
+  .hand { font-family: var(--hand); font-size: 58px; line-height: 1.38; color: var(--paper); text-wrap: pretty; }
+  .hand .c { opacity: 0; }
+  .precept { font-family: var(--serif); font-style: italic; font-weight: 500; font-size: 66px; line-height: 1.22; color: var(--gold-light); margin-top: 46px; text-wrap: balance; }
+  .name { font-family: var(--script); font-size: 96px; color: var(--gold-light); line-height: 1.05; margin-top: 30px; }
+  .meta { font-family: var(--caps); font-size: 30px; letter-spacing: .22em; color: var(--gold); margin-top: 8px; }
+  .rule { width: 240px; height: 2px; background: var(--gold); margin: 40px auto; position: relative; flex: none; }
+  .rule::after { content: "◆"; position: absolute; left: 50%; top: 50%; transform: translate(-50%,-52%); color: var(--gold); font-size: 20px; }
+  .seal { width: 220px; height: 220px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 56px; flex: none;
+    background: radial-gradient(circle at 35% 30%, #a02736 0%, #6e1522 55%, #3a0910 100%);
+    box-shadow: 0 0 0 12px rgba(185,148,90,.15), 0 20px 50px rgba(0,0,0,.5), inset 0 -10px 20px rgba(0,0,0,.35); }
+  .seal span { font-family: var(--script); font-size: 136px; color: var(--gold-light); transform: translateY(12px); }
+
+  /* Living archival portrait */
+  .oval { width: 560px; height: 720px; border-radius: 50%; padding: 10px; flex: none; position: relative;
+    background: linear-gradient(160deg, var(--gold-light), var(--gold) 50%, #6c4f28); box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .oval .in { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; position: relative; background: #d9c7a6; }
+  .oval img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 22%;
+    filter: grayscale(1) sepia(.75) contrast(1.12) brightness(.95); }
+  .oval .mono { position: absolute; inset: 0; display: none; place-items: center; font-family: var(--script); font-size: 190px; color: #5a3b22;
+    background: radial-gradient(circle at 50% 40%, #efe2c6 0%, #cdb48b 100%); }
+  .oval.empty img { display: none; } .oval.empty .mono { display: grid; }
+  .oval .vig { position: absolute; inset: 0; border-radius: 50%; box-shadow: inset 0 0 90px 30px rgba(40,25,12,.6); }
+
+  /* Photographs */
+  .photo { width: 820px; height: 1025px; flex: none; background: #fff; padding: 22px 22px 26px; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+  .photo .in { width: 100%; height: 100%; overflow: hidden; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .year { font-family: var(--caps); font-size: 104px; letter-spacing: .06em; color: var(--gold-light); line-height: 1; margin-top: 56px; }
+  .photo + .hand, .year + .hand { margin-top: 18px; font-size: 56px; }
+  .big2022 { font-family: var(--caps); font-size: 260px; color: rgba(226,201,154,.9); letter-spacing: .04em; line-height: 1; }
+  .gift img { width: 760px; height: 760px; object-fit: cover; display: block; border: 14px solid #fff; box-shadow: 0 30px 70px rgba(0,0,0,.5); background: #fff; }
+  .gift .t { font-family: var(--script); font-size: 96px; color: var(--gold-light); margin-top: 18px; line-height: 1.15; }
+  .sig { font-family: var(--script); font-size: 64px; color: var(--gold-light); margin-top: 40px; }
+
+  /* Film texture over everything */
+  #grain { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: overlay; opacity: .16; }
+  #flicker { position: absolute; inset: 0; pointer-events: none; background: #000; opacity: 0; }
+  #lb { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 220px 60px rgba(0,0,0,.55); }
+  [data-in] { opacity: 0; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<svg id="grain" width="1080" height="1920"><filter id="n"><feTurbulence id="turb" type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="1"/><feColorMatrix type="saturate" values="0"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+<div id="lb"></div><div id="flicker"></div>
+
+<script>
+// ---------- screenplay ----------
+var S = [
+  { t: 'title', a: 0, b: 7.2 },
+  { t: 'text', a: 7.2, b: 16.5, bg: 'sepia', kicker: 'Погреб · сундук · письма',
+    hand: 'Однажды дедушка попросил Франческу Картье принести из погреба бутылку вина. Там, в старом сундуке, лежали письма — сто лет переписки семьи.' },
+  { t: 'text', a: 16.5, b: 24, bg: 'wine', hand: 'Юля прочла эту книгу.', precept: 'А эти письма — для неё.' },
+
+  { t: 'letter', a: 24, b: 37, img: 'lf', mono: 'LF', name: 'Луи-Франсуа Картье', meta: 'Париж · Монторгёй, 29 · 1847',
+    hand: 'Я начинал с мастерской своего учителя и одного верстака. Вы — с одного браслета для мамы.',
+    precept: 'Не стесняйтесь маленького. Так рождаются реликвии.' },
+  { t: 'letter', a: 37, b: 50, img: 'alfred', mono: 'A', name: 'Альфред Картье', meta: 'Париж в осаде · 1870',
+    hand: 'Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. У вас был свой трудный год. Вы выстояли.',
+    precept: 'Дом проверяют не праздники, а осады.' },
+  { t: 'letter', a: 50, b: 63, img: 'louis', mono: 'L', name: 'Луи Картье', meta: 'Рю де ла Пэ, 13 · 1904',
+    hand: 'Я сделал часы для друга-авиатора: в полёте ему было неудобно доставать карманные. Лучшие вещи рождаются из заботы об одном человеке — как ваши гравировки.',
+    precept: 'Делайте для одного — и вас узнает весь мир.' },
+  { t: 'letter', a: 63, b: 76, img: 'pierre', mono: 'P', name: 'Пьер Картье', meta: 'Нью-Йорк · Пятая авеню · 1917',
+    hand: 'Я продал «Надежду», рассказав историю алмаза. А дом на Пятой авеню получил за нитку жемчуга. Вещь стоит столько, сколько в ней смысла.',
+    precept: 'Не бойтесь цены своих историй — и не бойтесь расти.' },
+  { t: 'letter', a: 76, b: 89, img: 'jacques', mono: 'J', name: 'Жак Картье', meta: 'Лондон · Индия · 1911',
+    hand: 'Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: «Красота в деталях — это Juliette’s».',
+    precept: 'Храните их истории. Однажды они станут вашей книгой.' },
+  { t: 'letter', a: 89, b: 102, img: 'jeanne', mono: 'JT', name: 'Жанна Туссен', meta: '«Пантера» · 1933',
+    hand: 'Я не умела рисовать — я умела знать, чего хочет женщина. Луи доверил мне вкус всего дома.',
+    precept: 'Никому не отдавайте свой вкус. И не забывайте украшать себя.' },
+
+  { t: 'photo', a: 102, b: 108.5, img: 'y2017', year: '2017', hand: 'mamy-bracelets. Один браслет. Одна мама. Одна идея.' },
+  { t: 'photo', a: 108.5, b: 113.6, img: 'yblossom', pos: '42% 40%', year: 'Juliette’s', hand: 'Имя, данное в её честь.' },
+  { t: 'dark', a: 113.6, b: 121, hand: 'Самый трудный год. Многие закрывались. Вы — нет.' },
+  { t: 'photo', a: 121, b: 128, img: 'tatyana', year: 'Татьяна', hand: 'Оправа, без которой камень не держится.' },
+  { t: 'photo', a: 128, b: 135, img: 'ytoday', year: 'Сегодня', hand: '2 000 моделей · 29 000 историй.' },
+  { t: 'photo', a: 135, b: 143, img: 'sveta', year: 'Света, 10', hand: 'Картье были домом четырёх поколений. У Juliette’s уже есть следующая глава.' },
+
+  { t: 'text', a: 143, b: 149, bg: 'wine', hand: 'В 1969-м в нашем доме появился браслет, который закрывают маленькой отвёрткой.', precept: 'Love. Любовь, закреплённая навсегда.', sig: 'Жанна Туссен' },
+  { t: 'gift', a: 149, b: 154, img: '../photos/earrings-1.jpg', k: 'Première · Lumière', title: 'Свет — вам как женщине' },
+  { t: 'gift', a: 154, b: 159.2, img: '../photos/earrings-2.jpg', contain: true, k: 'Seconde · Union', title: 'Союз — вам как основательнице', hand: 'Внутри нет ничьих имён. Это место — для вашего.' },
+
+  { t: 'photo', a: 159.2, b: 167, img: 'yfinal', year: '', hand: 'Ma chère Julie…' },
+  { t: 'final', a: 167, b: 177.6 }
+];
+window.DURATION = 177.6;
+
+// ---------- build ----------
+var stage = document.getElementById('stage');
+function el(html) { var d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
+function handSpans(text) {
+  return text.split('').map(function (ch) { return ch === ' ' ? ' ' : '<span class="c">' + ch + '</span>'; }).join('');
+}
+S.forEach(function (s, i) {
+  var h = '';
+  var bg = s.bg || (s.t === 'letter' ? 'sepia' : s.t === 'dark' ? 'black' : 'wine');
+  if (s.t === 'title') h =
+    '<div class="frame-line"></div><div class="seal" data-in="0.3"><span>J</span></div>' +
+    '<p class="kicker" data-in="1.2">Фильм-письмо · 31 октября</p>' +
+    '<h1 class="title" data-in="1.9" style="margin-top:36px">Ma chère<br>Julie</h1>' +
+    '<p class="sub" data-in="3.0" style="margin-top:36px">По мотивам истории семьи Картье<br>и дома Juliette’s</p>';
+  if (s.t === 'text') h = '<div class="frame-line"></div>' + (s.kicker ? '<p class="kicker" data-in="0.2" style="margin-bottom:50px">' + s.kicker + '</p>' : '') +
+    '<p class="hand" data-write="0.4">' + handSpans(s.hand) + '</p>' +
+    (s.precept ? '<p class="precept" data-in="' + (0.6 + s.hand.length / 26) + '">' + s.precept + '</p>' : '') +
+    (s.sig ? '<p class="sig" data-in="' + (1.2 + s.hand.length / 26) + '">' + s.sig + '</p>' : '');
+  if (s.t === 'letter') h = '<div class="frame-line"></div>' +
+    '<div class="oval" data-in="0.1"><div class="in"><img data-kb src="../photos/cartier/' + s.img + '.jpg" onerror="this.closest(\'.oval\').classList.add(\'empty\')"><span class="mono">' + s.mono + '</span><div class="vig"></div></div></div>' +
+    '<p class="name" data-in="0.6">' + s.name + '</p><p class="meta" data-in="0.9">' + s.meta + '</p>' +
+    '<div class="rule" data-in="1.1"></div>' +
+    '<p class="hand" data-write="1.4" style="font-size:52px">' + handSpans(s.hand) + '</p>' +
+    '<p class="precept" data-in="' + (1.9 + s.hand.length / 26) + '">' + s.precept + '</p>';
+  if (s.t === 'photo') h = '<div class="frame-line"></div>' +
+    '<div class="photo" data-in="0.1"><div class="in"><img data-kb src="../photos/graded/' + s.img + '.jpg" style="object-position:' + (s.pos || '50% 30%') + '"></div></div>' +
+    (s.year ? '<p class="year" data-in="0.6">' + s.year + '</p>' : '') +
+    '<p class="hand" data-write="1.0">' + handSpans(s.hand) + '</p>';
+  if (s.t === 'dark') h = '<p class="big2022" data-in="0.4">2022</p><div class="rule" data-in="1.4"></div><p class="hand" data-write="2.0">' + handSpans(s.hand) + '</p>';
+  if (s.t === 'gift') h = '<div class="frame-line"></div><img data-in="0.1" src="' + s.img + '"' + (s.contain ? ' style="object-fit:contain"' : '') + '>' +
+    '<p class="kicker" data-in="0.5" style="margin-top:60px">' + s.k + '</p><p class="t" data-in="0.8">' + s.title + '</p>' +
+    (s.hand ? '<p class="hand" data-write="1.6" style="font-size:50px;margin-top:20px">' + handSpans(s.hand) + '</p>' : '');
+  if (s.t === 'final') h = '<div class="frame-line"></div><div class="seal" data-in="0.1"><span>J</span></div>' +
+    '<p class="title" data-in="0.5" style="font-size:132px">С днём рождения,<br>Джульетта</p><div class="rule" data-in="1.4"></div>' +
+    '<p class="name" data-in="1.9" style="margin-top:0">Твой Мишка</p><p class="meta" data-in="2.6" style="margin-top:30px">31 · 10 · 2026</p>';
+  var sc = el('<section class="scene bg-' + bg + (s.t === 'gift' ? ' gift' : '') + '">' + h + '</section>');
+  sc._s = s; stage.appendChild(sc);
+});
+
+// ---------- render(t) ----------
+var FADE = 0.8;
+var scenes = [].slice.call(document.querySelectorAll('.scene'));
+function clamp(x) { return Math.max(0, Math.min(1, x)); }
+function ease(x) { return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2; }
+var CPS = 26; // handwriting speed, characters per second
+window.render = function (t) {
+  scenes.forEach(function (sc) {
+    var s = sc._s, a = s.a, b = s.b;
+    var o = Math.min(clamp((t - a) / (a === 0 ? 1.2 : FADE)), clamp((b - t) / FADE));
+    sc.style.opacity = ease(o); sc.style.visibility = o > 0 ? 'visible' : 'hidden';
+    if (o <= 0) return;
+    var local = t - a;
+    sc.querySelectorAll('[data-in]').forEach(function (e) {
+      var p = ease(clamp((local - +e.dataset.in) / 0.9));
+      e.style.opacity = p; e.style.transform = 'translateY(' + (1 - p) * 24 + 'px)';
+    });
+    sc.querySelectorAll('[data-write]').forEach(function (e) {
+      var start = +e.dataset.write, cs = e.querySelectorAll('.c');
+      for (var i = 0; i < cs.length; i++) cs[i].style.opacity = clamp((local - start - i / CPS) / 0.18);
+    });
+    sc.querySelectorAll('[data-kb]').forEach(function (img) {
+      var p = clamp(local / (b - a));
+      var breathe = 1 + 0.006 * Math.sin(local * 1.6);       // a slow "breath" for the living portraits
+      img.style.transform = 'scale(' + ((1.05 + p * 0.09) * breathe) + ') translate(' + (Math.sin(local * .35) * 6) + 'px,' + (-p * 14) + 'px)';
+    });
+  });
+  var f = Math.round(t * 30);
+  document.getElementById('turb').setAttribute('seed', (f % 97) + 1);
+  var inLetter = scenes.some(function (sc) { return sc._s.t === 'letter' && t > sc._s.a && t < sc._s.b; });
+  document.getElementById('grain').style.opacity = inLetter ? .26 : .12;
+  document.getElementById('flicker').style.opacity = inLetter ? (0.03 + 0.03 * Math.abs(Math.sin(f * 1.7) * Math.sin(f * .37))) : 0;
+};
+render(0);
+</script>
+</body>
+</html>
