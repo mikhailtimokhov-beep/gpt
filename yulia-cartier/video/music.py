@@ -3,7 +3,7 @@ import numpy as np, wave
 SR = 44100
 BPM = 126
 BEAT = 60 / BPM
-TOTAL = 60.6
+TOTAL = 62.1
 
 A, B = 'A', 'B'
 # (chord, [(midi, beats), ...]) — 3 beats per bar
@@ -59,7 +59,7 @@ out = out[:int(SR*TOTAL)]
 tl = np.arange(len(out)) / SR
 gain = np.ones_like(tl)
 gain *= np.clip(tl / 1.5, 0, 1)                                  # fade in
-gain *= np.interp(tl, [0, 51.5, 53, 99], [1, 1, .35, .35])       # duck for voice-over
+gain *= np.interp(tl, [0, 48.3, 49.4, 99], [1, 1, .28, .28])       # duck for voice-over
 gain *= np.clip((TOTAL - tl) / 2.5, 0, 1)                         # fade out
 out *= gain
 out = out / np.max(np.abs(out)) * .85
