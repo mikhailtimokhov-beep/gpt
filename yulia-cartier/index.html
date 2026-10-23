@@ -311,6 +311,9 @@
     transform: rotate(-2deg);
   }
   .polaroid .frame { padding: 10px 10px 12px; }
+  .polaroid.tilt-right { transform: rotate(1.8deg); }
+  .polaroid.landscape { width: 78%; margin-top: 48px; transform: rotate(-1deg); }
+  .polaroid.landscape .frame { aspect-ratio: 4 / 3; }
   .polaroid figcaption {
     font-family: var(--script);
     font-size: 26px;
@@ -319,7 +322,7 @@
     margin-top: 10px;
     line-height: 1.2;
   }
-  @media (max-width: 640px) { .polaroid { width: 82%; } }
+  @media (max-width: 640px) { .polaroid, .polaroid.landscape { width: 86%; } }
   .facts {
     list-style: none;
     display: grid;
@@ -537,6 +540,10 @@
     <p class="lead">в 1917 году я получил особняк на Пятой авеню, не заплатив за него деньгами. Я отдал двойную нить жемчуга и сто долларов: хозяйке дома очень нравилось ожерелье, а мне очень нравился дом. Сделка века? Возможно. Но главное в ней было другое: красивая вещь стоит столько, сколько она значит для человека.</p>
     <p>Ваши браслеты стоят не грамм серебра или золота. Они стоят ровно столько, сколько значит для матери имя её ребёнка. Не бойтесь называть настоящую цену своей работе.</p>
     <p>И не бойтесь расти. Мне говорили, что Америка не поймёт парижский вкус. Америка поняла. Вам будут говорить, что время не то, рынок не тот, что надо подождать. Слушайте вежливо — и делайте следующий шаг. Новая коллекция, новый город, новая мастерская: мир всегда больше, чем кажется из окна вашей нынешней.</p>
+    <figure class="polaroid tilt-right">
+      <div class="frame"><img src="photos/yulia-courage.jpg" alt="Юля в мотокостюме" style="object-position: 50% 20%"><span class="ph">Смелость</span></div>
+      <figcaption>Julie · le courage</figcaption>
+    </figure>
     <p>Впрочем, вы и сами это знаете. Вы начали с одного браслета для мамы, а сегодня в вашем каталоге больше двух тысяч моделей, и двадцать девять тысяч человек ждут каждую новую работу дома Juliette’s. В моё время, чтобы собрать столько людей, нужно было открыть магазин на Пятой авеню. У вас Пятая авеню помещается в телефоне. Пользуйтесь ею смело.</p>
   </div>
   <div class="signature">
@@ -642,8 +649,13 @@
     <figure><div class="frame"><img src="photos/yulia-2017-trip.jpg" alt="Юля в путешествии, 2017" style="object-position: 50% 30%"><span class="ph">Путешествие</span></div><figcaption>Путешествие, 2017</figcaption></figure>
     <figure><div class="frame"><img src="photos/yulia-2017-andorra.jpg" alt="Юля в Андорре, 2017" style="object-position: 62% 30%"><span class="ph">Андорра</span></div><figcaption>Андорра, 2017</figcaption></figure>
     <figure><div class="frame"><img src="photos/tatyana-1.jpg" alt="Татьяна"><span class="ph">Мама</span></div><figcaption>Татьяна</figcaption></figure>
-    <figure class="full"><div class="frame"><img src="photos/yulia-today.jpg" alt="Юля сегодня"><span class="ph">Сегодня</span></div><figcaption>Сегодня</figcaption></figure>
+    <figure class="wide"><div class="frame"><img src="photos/family-today.jpg" alt="Семья, 1 сентября" style="object-position: 50% 14%"><span class="ph">Сегодня</span></div><figcaption>Сегодня · та же мама, та же дочка</figcaption></figure>
+    <figure class="wide"><div class="frame"><img src="photos/family-selfie.jpg" alt="Семья вместе" style="object-position: 50% 30%"><span class="ph">Вместе</span></div><figcaption>Сегодня · вместе</figcaption></figure>
   </div>
+  <figure class="polaroid landscape">
+    <div class="frame"><img src="photos/us-today.jpg" alt="Юля и Миша" style="object-position: 50% 35%"><span class="ph">Мы</span></div>
+    <figcaption>Nous</figcaption>
+  </figure>
   <div class="ps prose">
     <p class="label">P.S.</p>
     <p>Юля, эти письма — от людей, которые вдохновили тебя. А серьги — от того, кого вдохновляешь ты. С днём рождения.</p>
