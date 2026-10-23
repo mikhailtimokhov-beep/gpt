@@ -320,6 +320,17 @@
     line-height: 1.2;
   }
   @media (max-width: 640px) { .polaroid { width: 82%; } }
+  .facts {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 6px 0 4px;
+    text-align: center;
+  }
+  .facts b { display: block; font-family: var(--caps); font-weight: 500; font-size: 30px; color: var(--wine); line-height: 1.1; font-variant-numeric: lining-nums; }
+  .facts span { font-size: 15px; font-style: italic; color: var(--ink-soft); }
+  @media (max-width: 640px) { .facts { grid-template-columns: repeat(2, 1fr); row-gap: 18px; } }
   .ps {
     margin-top: 48px;
     padding-top: 28px;
@@ -414,7 +425,7 @@
       <p class="what">Основатель. В 1847 году принял мастерскую своего учителя в Париже.</p>
     </div>
     <div class="member">
-      <div class="portrait"><img src="photos/alfred.jpg" data-wiki="Alfred_Cartier" alt="Альфред Картье" loading="lazy"><span class="mono">A</span></div>
+      <div class="portrait"><img src="https://upload.wikimedia.org/wikipedia/en/7/7e/Alfred_Cartier.png" data-wiki="Alfred_Cartier" alt="Альфред Картье" loading="lazy"><span class="mono">A</span></div>
       <p class="who">Альфред</p>
       <p class="years">1841 — 1925</p>
       <p class="what">Сын. Провёл дом через войну и вырастил трёх наследников.</p>
@@ -471,7 +482,7 @@
 <!-- ============ II. АЛЬФРЕД ============ -->
 <section class="sheet reveal">
   <div class="letter-head">
-    <div class="portrait"><img src="photos/alfred.jpg" data-wiki="Alfred_Cartier" alt="Альфред Картье"><span class="mono">A</span></div>
+    <div class="portrait"><img src="https://upload.wikimedia.org/wikipedia/en/7/7e/Alfred_Cartier.png" data-wiki="Alfred_Cartier" alt="Альфред Картье"><span class="mono">A</span></div>
     <p class="roman">II</p>
     <h2>О семье</h2>
     <p class="meta">Париж, после трудных лет</p>
@@ -526,6 +537,7 @@
     <p class="lead">в 1917 году я получил особняк на Пятой авеню, не заплатив за него деньгами. Я отдал двойную нить жемчуга и сто долларов: хозяйке дома очень нравилось ожерелье, а мне очень нравился дом. Сделка века? Возможно. Но главное в ней было другое: красивая вещь стоит столько, сколько она значит для человека.</p>
     <p>Ваши браслеты стоят не грамм серебра или золота. Они стоят ровно столько, сколько значит для матери имя её ребёнка. Не бойтесь называть настоящую цену своей работе.</p>
     <p>И не бойтесь расти. Мне говорили, что Америка не поймёт парижский вкус. Америка поняла. Вам будут говорить, что время не то, рынок не тот, что надо подождать. Слушайте вежливо — и делайте следующий шаг. Новая коллекция, новый город, новая мастерская: мир всегда больше, чем кажется из окна вашей нынешней.</p>
+    <p>Впрочем, вы и сами это знаете. Вы начали с одного браслета для мамы, а сегодня в вашем каталоге больше двух тысяч моделей, и двадцать девять тысяч человек ждут каждую новую работу дома Juliette’s. В моё время, чтобы собрать столько людей, нужно было открыть магазин на Пятой авеню. У вас Пятая авеню помещается в телефоне. Пользуйтесь ею смело.</p>
   </div>
   <div class="signature">
     <p class="name">Pierre Cartier</p>
@@ -546,7 +558,8 @@
     <p class="lead">я объездил полмира — Индию, Персидский залив, Цейлон — в поисках камней. И вот что я понял: камень сам скажет, чем ему быть, если смотреть на него достаточно долго. Не торопитесь. Ищите в камне характер, а не только цену.</p>
     <p>Я знаю, что в ваших изделиях живут камни всех видов. Изучайте их так, как изучал я. Знание камня — вот что отличает ювелира от продавца украшений.</p>
     <p>И второе — о людях. Самые важные мои заказы начинались с разговора, а не с эскиза. Махараджа или молодая мать — каждому важно, чтобы его выслушали. Ваши клиентки приходят к вам с самой большой своей радостью — рождением ребёнка. Будьте достойны этого доверия.</p>
-    <p>Храните их истории, отзывы, фотографии. Однажды они станут вашей книгой — так же, как наши письма стали нашей.</p>
+    <p>Я прочёл, что пишут о вас ваши клиентки. Одна заказала браслет в честь рождения двойни, сына и дочки. Другая пишет, что гравировку «приятно трогать пальчиком». Третья — просто: «Красота в деталях — это Juliette’s». Лучшей рекомендации ювелиру не придумать: именно так, по деталям, отличают настоящий дом.</p>
+    <p>Храните эти истории, отзывы, фотографии. Однажды они станут вашей книгой — так же, как наши письма стали нашей.</p>
   </div>
   <div class="signature">
     <p class="name">Jacques Cartier</p>
@@ -617,6 +630,12 @@
   <p class="kicker">La maison Juliette’s</p>
   <h2 style="margin-top:10px">Ваша история продолжается</h2>
   <div class="rule"><span>◆</span></div>
+  <ul class="facts">
+    <li><b>2017</b><span>первый браслет</span></li>
+    <li><b>2 000+</b><span>моделей</span></li>
+    <li><b>29 000</b><span>подписчиков</span></li>
+    <li><b>1 965</b><span>историй в ленте</span></li>
+  </ul>
   <div class="gallery">
     <figure class="wide"><div class="frame"><img src="photos/yulia-2017-mama.jpg" alt="Юля с дочкой, 2017" style="object-position: 50% 30%"><span class="ph">2017</span></div><figcaption>2017 · Мама. С этого всё началось</figcaption></figure>
     <figure class="wide"><div class="frame"><img src="photos/yulia-2017-bike.jpg" alt="Юля на велосипеде, лето 2017" style="object-position: 45% 30%"><span class="ph">Лето</span></div><figcaption>Лето 2017</figcaption></figure>
