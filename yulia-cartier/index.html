@@ -282,7 +282,7 @@
     position: relative;
   }
   .wide .frame { aspect-ratio: 4 / 3; }
-  .frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .frame img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; display: block; }
   .frame .ph {
     display: none;
     width: 100%; height: 100%;
@@ -303,6 +303,21 @@
     margin-top: 8px;
   }
 
+  .polaroid {
+    width: 62%;
+    margin: 30px auto 34px;
+    transform: rotate(-2deg);
+  }
+  .polaroid .frame { padding: 10px 10px 12px; }
+  .polaroid figcaption {
+    font-family: var(--script);
+    font-size: 26px;
+    color: var(--wine);
+    text-align: center;
+    margin-top: 10px;
+    line-height: 1.2;
+  }
+  @media (max-width: 640px) { .polaroid { width: 82%; } }
   .ps {
     margin-top: 48px;
     padding-top: 28px;
@@ -461,6 +476,10 @@
     <p class="salutation">Дорогая Юлия,</p>
     <p class="lead">мне досталось непростое время: война, осада Парижа, годы, когда драгоценности никому не были нужны. Я выдержал не потому, что был умнее других, а потому что рядом была семья. Когда не на кого опереться, дом рушится. Когда есть — он переживает всё.</p>
     <p>Я вижу, что у вас такая опора есть. Ваша мама, Татьяна, рядом с вами с первых дней. Передайте ей мой поклон: люди, которые держат дом в тишине, без витрин и аплодисментов, — его фундамент. Ни один камень не держится без оправы.</p>
+    <figure class="polaroid">
+      <div class="frame"><img src="photos/tatyana-2.jpg" alt="Татьяна, мама Юли"><span class="ph">Татьяна</span></div>
+      <figcaption>Татьяна — оправа дома Juliette’s</figcaption>
+    </figure>
     <p>Мой совет: распределяйте роли так, как я распределил их между сыновьями. Луи творил, Пьер покорял новые земли, Жак искал камни. Каждый был силён в своём, и никто не пытался быть всем сразу. Доверяйте друг другу ту часть дела, в которой другой сильнее вас.</p>
     <p>И хотя бы раз в год садитесь втроём за один стол — не обсуждать заказы, а вспоминать, ради чего всё начиналось.</p>
   </div>
@@ -594,7 +613,7 @@
     <figure class="wide"><div class="frame"><img src="photos/yulia-1.jpg" alt="Юля"><span class="ph">Юля</span></div><figcaption>Юля</figcaption></figure>
     <figure class="wide"><div class="frame"><img src="photos/yulia-2.jpg" alt="Начало, 2017"><span class="ph">2017</span></div><figcaption>2017 · Начало</figcaption></figure>
     <figure><div class="frame"><img src="photos/yulia-3.jpg" alt="В мастерской"><span class="ph">Мастерская</span></div><figcaption>В мастерской</figcaption></figure>
-    <figure><div class="frame"><img src="photos/yulia-4.jpg" alt="Юля и Татьяна"><span class="ph">Мама</span></div><figcaption>Юля и Татьяна</figcaption></figure>
+    <figure><div class="frame"><img src="photos/tatyana-1.jpg" alt="Татьяна"><span class="ph">Мама</span></div><figcaption>Татьяна</figcaption></figure>
     <figure><div class="frame"><img src="photos/yulia-5.jpg" alt="Изделия Juliette's"><span class="ph">Изделия</span></div><figcaption>Juliette’s</figcaption></figure>
     <figure class="wide"><div class="frame"><img src="photos/yulia-6.jpg" alt="Семья"><span class="ph">Семья</span></div><figcaption>Семья</figcaption></figure>
     <figure class="wide"><div class="frame"><img src="photos/yulia-7.jpg" alt="Сегодня"><span class="ph">Сегодня</span></div><figcaption>Сегодня</figcaption></figure>
