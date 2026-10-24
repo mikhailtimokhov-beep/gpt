@@ -21,28 +21,28 @@ S = [
   dict(t='letter', d=13, img='lf', mono='LF', name='Луи-Франсуа Картье', meta='Париж · Монторгёй, 29 · 1847',
        hand='Я начинал с мастерской своего учителя и одного верстака. Вы — с одного браслета для мамы.',
        precept='Не стесняйтесь маленького. Так рождаются реликвии.',
-       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('frp', "Ne craignez jamais les petits commencements.")]),
   dict(t='letter', d=13, img='alfred', mono='A', name='Альфред Картье', meta='Париж в осаде · 1870',
        hand='Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. У вас был свой трудный год. Вы выстояли.',
        precept='Дом проверяют не праздники, а осады.',
-       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('frp', "Une maison se juge dans la tempête, pas dans les fêtes.")]),
   dict(t='letter', d=13, img='louis', mono='L', name='Луи Картье', meta='Рю де ла Пэ, 13 · 1904',
        hand='Я сделал часы для друга-авиатора: в полёте ему было неудобно доставать карманные. Лучшие вещи рождаются из заботы об одном человеке — как ваши гравировки.',
        precept='Делайте для одного — и вас узнает весь мир.',
-       voice=[('fr', 'Chère Madame.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Chère Madame.'), ('hand', None), ('frp', "Créez pour une seule personne, et le monde entier vous reconnaîtra.")]),
   dict(t='letter', d=13, img='pierre', mono='P', name='Пьер Картье', meta='Нью-Йорк · Пятая авеню · 1917',
        hand='Я продал «Надежду», рассказав историю алмаза. А дом на Пятой авеню получил за нитку жемчуга. Вещь стоит столько, сколько в ней смысла.',
        precept='Не бойтесь цены своих историй — и не бойтесь расти.',
-       voice=[('fr', 'Chère Julie.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Chère Julie.'), ('hand', None), ('frp', "N'ayez pas peur de grandir.")]),
   dict(t='letter', d=13, img='jacques', mono='J', name='Жак Картье', meta='Лондон · Индия · 1911',
        hand='Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: «Красота в деталях — это Juliette’s».',
        say_hand='Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: красота в деталях — это Джульеттс.',
        precept='Храните их истории. Однажды они станут вашей книгой.',
-       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('frp', "Gardez leurs histoires précieusement.")]),
   dict(t='letter', d=13, img='jeanne', mono='JT', name='Жанна Туссен', meta='«Пантера» · 1933',
        hand='Я не умела рисовать — я умела знать, чего хочет женщина. Луи доверил мне вкус всего дома.',
        precept='Никому не отдавайте свой вкус. И не забывайте украшать себя.',
-       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('precept', None)]),
+       voice=[('fr', 'Ma chère Julie.'), ('hand', None), ('frp', "Ne confiez votre goût à personne.")]),
 
   dict(t='photo', d=6.5, img='y2017', year='2017', hand='mamy-bracelets. Один браслет. Одна мама. Одна идея.',
        say_hand='Две тысячи семнадцатый. Один браслет. Одна мама. Одна идея.', voice=[('hand', None)]),
@@ -62,10 +62,10 @@ S = [
        precept='Love. Любовь, закреплённая навсегда.', say_precept='Лав. Любовь, закреплённая навсегда.', sig='Жанна Туссен',
        voice=[('hand', None), ('precept', None)]),
   dict(t='gift', d=5.2, img='../photos/earrings-1.jpg', k='Première · Lumière', title='Свет — вам как женщине',
-       voice=[('fr', 'Lumière.'), ('say', 'Свет — вам как женщине.')]),
+       voice=[('frf', 'Lumière.'), ('say', 'Свет — вам как женщине.')]),
   dict(t='gift', d=5.5, img='../photos/earrings-2.jpg', contain=True, k='Seconde · Union', title='Союз — вам как основательнице',
        hand='Внутри нет ничьих имён. Это место — для вашего.',
-       voice=[('fr', 'Union.'), ('say', 'Союз — вам как основательнице.'), ('hand', None)]),
+       voice=[('frf', 'Union.'), ('say', 'Союз — вам как основательнице.'), ('hand', None)]),
 
   dict(t='photo', d=7.8, img='yfinal', year='', hand='Ma chère Julie…', final_voice=True),
   dict(t='final', d=10.6),
@@ -104,10 +104,11 @@ def synth(kind, text, cid=None):
     key = os.path.join(cache, hashlib.md5((kind + text).encode()).hexdigest() + '.wav')
     if os.path.exists(key):
         return sf.read(key)[0]
-    if kind == 'fr':
-        y = trim(piper('fr-gilles-low', text, '/tmp/p.wav', 1.05)); y = y / np.max(np.abs(y)) * .85
+    if kind in ('fr_m', 'fr_f'):
+        y = trim(piper('fr-gilles-low' if kind == 'fr_m' else 'fr-siwis-medium', text, '/tmp/p.wav', 1.08))
     else:
-        y = trim(male(piper('ru-irinia-medium', text, '/tmp/p.wav', 1.06)))
+        y = trim(piper('ru-irinia-medium', text, '/tmp/p.wav', 1.0))
+    y = y / (np.max(np.abs(y)) + 1e-9) * .85
     sf.write(key, y, SR); return y
 
 t = 0.0; clips = []; scenes = []; duck = []
@@ -118,12 +119,14 @@ for si, s in enumerate(S):
     for k, (kind, txt) in enumerate(s.get('voice', [])):
         if kind == 'hand':   txt = s.get('say_hand', s['hand'])
         if kind == 'precept': txt = s.get('say_precept', s['precept'])
-        y = synth('fr' if kind == 'fr' else 'ru', txt, f's{si:02d}_{k}')
+        female = s.get('img') == 'jeanne' or kind == 'frf'
+        lang = ('fr_f' if female else 'fr_m') if kind in ('fr', 'frp', 'frf') else 'ru'
+        y = synth(lang, txt)
         dur = len(y) / SR
         clips.append((t + cur, y)); duck.append((t + cur, t + cur + dur))
         if kind == 'hand':    cues['write'] = round(cur, 2); cues['cps'] = round(len(s['hand']) / max(dur * .92, .5), 2)
-        if kind == 'precept': cues['precept'] = round(cur, 2)
-        if kind == 'fr' and s['t'] == 'gift': cues['title'] = round(cur, 2)
+        if kind in ('precept', 'frp'): cues['precept'] = round(cur, 2)
+        if kind == 'frf' and s['t'] == 'gift': cues['title'] = round(cur, 2)
         cur += dur + 0.45
     if s.get('final_voice'):
         y, sr = sf.read(FINAL_VOICE)
