@@ -76,8 +76,9 @@ tl = np.arange(len(out)) / SR
 gain = np.ones_like(tl)
 gain *= np.clip(tl / 1.5, 0, 1)                                  # fade in
 duck = np.ones_like(tl)
-for a, b in D['duck']:                                            # duck music under every voice clip
-    duck = np.minimum(duck, np.interp(tl, [a - .45, a - .1, b + .1, b + .6], [1, .3, .3, 1], left=1, right=1))
+for seg in D['duck']:                                             # duck music under every voice clip (deeper under Misha)
+    a, b = seg[0], seg[1]; lvl = .14 if len(seg) > 2 else .3
+    duck = np.minimum(duck, np.interp(tl, [a - .6, a - .1, b + .1, b + .8], [1, lvl, lvl, 1], left=1, right=1))
 gain *= duck
 gain *= np.interp(tl, [D['quiet'][0], D['quiet'][0] + 1, D['quiet'][1] - 1, D['quiet'][1]], [1, .35, .35, 1], left=1, right=1)
 gain *= np.clip((TOTAL - tl) / 2.5, 0, 1)                         # fade out
