@@ -25,7 +25,7 @@ S = [
        voice=[('fr', 'Ma chère Julie.'), ('tr', 'Моя дорогая Юлия.'), ('hand', None),
               ('frp', "Ne craignez jamais les petits commencements, Julie."), ('precept', None)]),
   dict(t='letter', d=13, img='alfred', mono='A', name='Альфред Картье', meta='Париж в осаде · 1870',
-       hand='Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. Дом держится не на одном человеке: рядом с вами, Юлия, — Михаил и мама Татьяна. У вас был свой трудный год. Вы выстояли.',
+       hand='Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. Дом держится не на одном человеке: рядом с вами, Юлия, — Михаил и мама Татьяна. У вас тоже были свои трудные годы — и вы выстояли.',
        precept='Дом проверяют не праздники, а осады.',
        voice=[('fr', 'Chère Julie.'), ('tr', 'Дорогая Юлия.'), ('hand', None),
               ('frp', "Une maison se juge dans la tempête, pas dans les fêtes."), ('precept', None)]),
@@ -51,7 +51,7 @@ S = [
        voice=[('fr', 'Ma chère Juliette.'), ('tr', 'Моя дорогая Джульетта.'), ('hand', None),
               ('frp', "Ne confiez votre goût à personne."), ('precept', None)]),
 
-  dict(t='photo', d=6.5, img='y2017', year='2017', hand='Mamy Braslets. Один браслет. Одна мама. Одна идея.',
+  dict(t='photo', d=6.5, img='family2017', year='2017', hand='Mamy Braslets. Один браслет. Одна мама. Одна идея.',
        say_hand='Две тысячи семнадцатый. Мами Браслетс. Один браслет. Одна мама. Одна идея.', voice=[('hand', None)]),
   dict(t='photo', d=5.2, img='yblossom', pos='42% 40%', year='Juliette’s', hand='Имя, данное в её честь.',
        say_hand='Джульеттс. Имя, данное в её честь.', voice=[('hand', None)]),
@@ -68,7 +68,7 @@ S = [
 
   dict(t='text', d=6.5, hand='В 1969-м в нашем доме появился браслет, который закрывают маленькой отвёрткой.',
        say_hand='В тысяча девятьсот шестьдесят девятом в нашем доме появился браслет, который закрывают маленькой отвёрткой.',
-       precept='Love. Любовь, закреплённая навсегда.', say_precept='Лав. Любовь, закреплённая навсегда.', sig='Жанна Туссен',
+       precept='Love. Любовь, закреплённая навсегда.', say_precept='Лав. Любовь, закреплённая навсегда.', sig='Жанна Туссен', logo='Cartier',
        voice=[('hand', None), ('precept', None)]),
   dict(t='gift', d=5.2, img='../photos/earrings-1.jpg', k='Première · Lumière', title='Свет — вам как девушке',
        voice=[('frf', 'Lumière.'), ('say', 'Свет — вам, Юля, как девушке.')]),
@@ -76,7 +76,8 @@ S = [
        hand='Внутри нет ничьих имён. Это место — для вашего.',
        voice=[('frf', 'Union.'), ('say', 'Союз — вам как основательнице.'), ('hand', None)]),
 
-  dict(t='photo', d=7.8, img='misha-close', year='Михаил', hand='Сооснователь Juliette’s', final_voice=True),
+  dict(t='photo', d=8, img='trio', wide=True, year='Juliette’s', hand='Семья Картье поздравляет с днём рождения ювелирный дом Juliette’s и его основательницу — Юлию.',
+       say_hand='Семья Картье поздравляет с днём рождения ювелирный дом Джульеттс и его основательницу — Юлию.', voice=[('hand', None)]),
   dict(t='final', d=10.6),
 ]
 

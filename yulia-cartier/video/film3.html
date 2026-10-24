@@ -49,6 +49,8 @@
   .photo { width: 820px; height: 1025px; flex: none; background: #fff; padding: 22px 22px 26px; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
   .photo .in { width: 100%; height: 100%; overflow: hidden; }
   .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo.wide { width: 920px; height: 560px; }
+  .logo { font-family: var(--script); font-size: 150px; line-height: 1; color: var(--gold-light); letter-spacing: .01em; margin-bottom: 60px; text-shadow: 0 2px 18px rgba(0,0,0,.35); }
   .year { font-family: var(--caps); font-size: 104px; letter-spacing: .06em; color: var(--gold-light); line-height: 1; margin-top: 56px; }
   .photo + .hand, .year + .hand { margin-top: 18px; font-size: 56px; }
   .big2022 { font-family: var(--caps); font-size: 260px; color: rgba(226,201,154,.9); letter-spacing: .04em; line-height: 1; }
@@ -85,7 +87,7 @@ S.forEach(function (s, i) {
     '<p class="kicker" data-in="1.2">Фильм-письмо · 31 октября</p>' +
     '<h1 class="title" data-in="1.9" style="margin-top:36px">Ma chère<br>Julie</h1>' +
     '<p class="sub" data-in="3.0" style="margin-top:36px">По мотивам истории семьи Картье<br>и дома Juliette’s</p>';
-  if (s.t === 'text') h = '<div class="frame-line"></div>' + (s.kicker ? '<p class="kicker" data-in="0.2" style="margin-bottom:50px">' + s.kicker + '</p>' : '') +
+  if (s.t === 'text') h = '<div class="frame-line"></div>' + (s.logo ? '<p class="logo" data-in="0.2">' + s.logo + '</p>' : '') + (s.kicker ? '<p class="kicker" data-in="0.2" style="margin-bottom:50px">' + s.kicker + '</p>' : '') +
     '<p class="hand" data-write="' + C.write + '" data-cps="' + C.cps + '">' + handSpans(s.hand) + '</p>' +
     (s.precept ? '<p class="precept" data-in="' + C.precept + '">' + s.precept + '</p>' : '') +
     (s.sig ? '<p class="sig" data-in="' + (C.precept + 1.2) + '">' + s.sig + '</p>' : '');
@@ -96,7 +98,7 @@ S.forEach(function (s, i) {
     '<p class="hand" data-write="' + C.write + '" data-cps="' + C.cps + '" style="font-size:52px">' + handSpans(s.hand) + '</p>' +
     '<p class="precept" data-in="' + C.precept + '">' + s.precept + '</p>';
   if (s.t === 'photo') h = '<div class="frame-line"></div>' +
-    '<div class="photo" data-in="0.1"><div class="in"><img data-kb src="../photos/graded/' + s.img + '.jpg" style="object-position:' + (s.pos || '50% 30%') + '"></div></div>' +
+    '<div class="photo' + (s.wide ? ' wide' : '') + '" data-in="0.1"><div class="in"><img data-kb src="../photos/graded/' + s.img + '.jpg" style="object-position:' + (s.pos || '50% 30%') + '"></div></div>' +
     (s.year ? '<p class="year" data-in="0.6">' + s.year + '</p>' : '') +
     '<p class="hand" data-write="' + (C.write != null ? C.write : 1.0) + '" data-cps="' + (C.cps || 26) + '">' + handSpans(s.hand) + '</p>';
   if (s.t === 'dark') h = '<p class="big2022" data-in="0.4">2022</p><div class="rule" data-in="1.4"></div><p class="hand" data-write="2.0">' + handSpans(s.hand) + '</p>';
@@ -105,7 +107,7 @@ S.forEach(function (s, i) {
     (s.hand ? '<p class="hand" data-write="' + C.write + '" data-cps="' + C.cps + '" style="font-size:50px;margin-top:20px">' + handSpans(s.hand) + '</p>' : '');
   if (s.t === 'final') h = '<div class="frame-line"></div><div class="seal" data-in="0.1"><span>J</span></div>' +
     '<p class="title" data-in="0.5" style="font-size:132px">С днём рождения,<br>Джульетта</p><div class="rule" data-in="1.4"></div>' +
-    '<p class="name" data-in="1.9" style="margin-top:0">Твой Мишка</p><p class="meta" data-in="2.6" style="margin-top:30px">31 · 10 · 2026</p>';
+    '<p class="name" data-in="1.9" style="margin-top:0">Семья Картье</p><p class="meta" data-in="2.6" style="margin-top:30px">31 · 10 · 2026</p>';
   var sc = el('<section class="scene bg-' + bg + (s.t === 'gift' ? ' gift' : '') + '">' + h + '</section>');
   sc._s = s; stage.appendChild(sc);
 });
