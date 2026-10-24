@@ -8,6 +8,6 @@ async def main():
     for it in items:
         path = os.path.join(OUT, it['id'] + '.mp3')
         if os.path.exists(path) and os.path.getsize(path) > 0: continue
-        await edge_tts.Communicate(it['text'], it['voice'], rate=it['rate']).save(path)
+        await edge_tts.Communicate(it['text'], it['voice'], rate=it['rate'], pitch=it.get('pitch', '+0Hz')).save(path)
         print('ok', it['id'], it['voice'])
 asyncio.run(main())

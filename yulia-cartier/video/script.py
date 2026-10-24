@@ -53,16 +53,14 @@ S = [
 
   dict(t='photo', d=6.5, img='yulia2017-studio', logo_img='mamy-braslets-logo.png', year='2017', hand='Один браслет. Одна мама. Одна идея.',
        say_hand='Две тысячи семнадцатый. Мами Браслетс. Один браслет. Одна мама. Одна идея.', voice=[('hand', None)]),
-  dict(t='photo', d=5.2, img='yblossom', pos='42% 40%', year='Juliette’s', hand='Имя, данное в её честь.',
+  dict(t='photo', d=5.2, img='workshop', wide=True, year='Juliette’s', hand='Имя, данное в её честь.',
        say_hand='Джульеттс. Имя, данное в её честь.', voice=[('hand', None)]),
   dict(t='photo', d=7, img='misha-founder', year='Михаил', hand='Сооснователь дома. Это он назвал дело её именем — и с первого дня рядом с Юлей.',
        say_hand='Михаил — сооснователь дома. Это он назвал дело её именем — и с первого дня рядом с Юлей.', voice=[('hand', None)]),
-  dict(t='dark', d=7.4, hand='Самый трудный год. Многие закрывались. Но только не вы.',
-       say_hand='Две тысячи двадцать второй. Самый трудный год. Многие закрывались. Но только не вы.', voice=[('hand', None)]),
   dict(t='photo', d=8, img='tatyana-classic', year='Татьяна', hand='И всё это время рядом была Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.',
        say_hand='И всё это время рядом была Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.', voice=[('hand', None)]),
-  dict(t='photo', d=7, img='yulia-classic', year='Сегодня', hand='2 000 моделей · 29 000 историй.',
-       say_hand='Сегодня. Две тысячи моделей. Двадцать девять тысяч историй.', voice=[('hand', None)]),
+  dict(t='photo', d=7, img='yulia-classic', year='Сегодня', hand='2 000 моделей · более 3 000 историй.',
+       say_hand='Сегодня. Две тысячи моделей. Более трёх тысяч историй.', voice=[('hand', None)]),
   dict(t='photo', d=8, img='sveta-classic', year='Света, 10', hand='Картье были домом четырёх поколений. У Juliette’s уже есть следующая глава.',
        say_hand='Света, десять лет. Картье были домом четырёх поколений. У Джульеттс уже есть следующая глава.', voice=[('hand', None)]),
 
@@ -137,7 +135,7 @@ for si, s in enumerate(S):
         if kind == 'precept': txt = s.get('say_precept', s['precept'])
         female = s.get('img') == 'jeanne' or kind == 'frf'
         lang = ('fr_f' if female else 'fr_m') if kind in ('fr', 'frp', 'frf') else 'ru'
-        y = synth(lang, txt)
+        y = synth(lang, txt, f's{si:02d}_{k}')
         dur = len(y) / SR
         clips.append((t + cur, y)); duck.append((t + cur, t + cur + dur))
         if kind == 'hand':    cues['write'] = round(cur, 2); cues['cps'] = round(len(s['hand']) / max(dur * .92, .5), 2)
@@ -159,7 +157,7 @@ for a, y in clips:
     i = int(a * SR); track[i:i + len(y)] += y[:len(track) - i]
 track = track / np.max(np.abs(track)) * .9
 sf.write(os.path.join(HERE, 'voice_track.wav'), track, SR)
-dark = next(s for s in scenes if s['t'] == 'dark')
+dark = next((s for s in scenes if s['t'] == 'dark'), {'a': -10, 'b': -9})
 json.dump(dict(total=total, duck=duck, quiet=[dark['a'], dark['b']]), open(os.path.join(HERE, 'duck.json'), 'w'))
 open(os.path.join(HERE, 'script.js'), 'w').write('window.S = ' + json.dumps(scenes, ensure_ascii=False, indent=1) + ';\nwindow.DURATION = ' + str(round(total, 2)) + ';\n')
 print('total', round(total, 1), 's,', len(clips), 'voice clips')

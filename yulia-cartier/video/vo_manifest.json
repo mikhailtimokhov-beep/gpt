@@ -2,205 +2,288 @@
  {
   "id": "s01_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Однажды дедушка попросил Франческу Картье принести из погреба бутылку вина. Там, в старом сундуке, лежали письма — сто лет переписки семьи."
  },
  {
   "id": "s02_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Юля прочла эту книгу."
  },
  {
   "id": "s02_1",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "А эти письма — для неё."
  },
  {
   "id": "s03_0",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Ma chère Julie."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Моя дорогая Юлия."
  },
  {
   "id": "s03_1",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Я начинал с мастерской своего учителя и одного верстака. Вы — с одного браслета для мамы."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Юлия, я начинал с мастерской своего учителя и одного верстака. Вы — с одного браслета для мамы."
  },
  {
   "id": "s03_2",
   "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Не стесняйтесь маленького. Так рождаются реликвии."
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "Ne craignez jamais les petits commencements, Julie."
+ },
+ {
+  "id": "s03_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Не стесняйтесь маленького, Юля. Так рождаются реликвии."
  },
  {
   "id": "s04_0",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Ma chère Julie."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Дорогая Юлия."
  },
  {
   "id": "s04_1",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. У вас был свой трудный год. Вы выстояли."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. Дом держится не на одном человеке: рядом с вами, Юлия, — Михаил и Татьяна. У вас тоже были свои трудные годы — и вы выстояли."
  },
  {
   "id": "s04_2",
   "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "Une maison se juge dans la tempête, pas dans les fêtes."
+ },
+ {
+  "id": "s04_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Дом проверяют не праздники, а осады."
  },
  {
   "id": "s05_0",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Chère Madame."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Дорогая мадам Юлия."
  },
  {
   "id": "s05_1",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Я сделал часы для друга-авиатора: в полёте ему было неудобно доставать карманные. Лучшие вещи рождаются из заботы об одном человеке — как ваши гравировки."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Я сделал часы для друга-авиатора: в полёте ему было неудобно доставать карманные. Лучшие вещи рождаются из заботы об одном человеке — как ваши гравировки, Юля."
  },
  {
   "id": "s05_2",
   "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "Créez pour une seule personne, et le monde entier vous reconnaîtra."
+ },
+ {
+  "id": "s05_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Делайте для одного — и вас узнает весь мир."
  },
  {
   "id": "s06_0",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Chère Julie."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Дорогая Юлия."
  },
  {
   "id": "s06_1",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Я продал «Надежду», рассказав историю алмаза. А дом на Пятой авеню получил за нитку жемчуга. Вещь стоит столько, сколько в ней смысла."
  },
  {
   "id": "s06_2",
   "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Не бойтесь цены своих историй — и не бойтесь расти."
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "N'ayez pas peur de grandir, Julie."
+ },
+ {
+  "id": "s06_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Не бойтесь цены своих историй, Юлия, — и не бойтесь расти."
  },
  {
   "id": "s07_0",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Ma chère Julie."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Моя дорогая Юлия."
  },
  {
   "id": "s07_1",
-  "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: красота в деталях — это Джульеттс."
  },
  {
   "id": "s07_2",
   "voice": "fr-FR-RemyMultilingualNeural",
-  "rate": "-6%",
-  "text": "Храните их истории. Однажды они станут вашей книгой."
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "Gardez précieusement leurs histoires, Julie."
+ },
+ {
+  "id": "s07_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Храните их истории, Юля. Однажды они станут вашей книгой."
  },
  {
   "id": "s08_0",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
-  "text": "Ma chère Julie."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Моя дорогая Джульетта."
  },
  {
   "id": "s08_1",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
-  "text": "Я не умела рисовать — я умела знать, чего хочет женщина. Луи доверил мне вкус всего дома."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Я не умела рисовать — я умела знать, чего хочет женщина. Луи доверил мне вкус всего дома. Вам, Джульетта, доверили свой."
  },
  {
   "id": "s08_2",
   "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "rate": "-12%",
+  "pitch": "-2Hz",
+  "text": "Ne confiez votre goût à personne."
+ },
+ {
+  "id": "s08_3",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Никому не отдавайте свой вкус. И не забывайте украшать себя."
  },
  {
   "id": "s09_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
-  "text": "Две тысячи семнадцатый. Один браслет. Одна мама. Одна идея."
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Две тысячи семнадцатый. Мами Браслетс. Один браслет. Одна мама. Одна идея."
  },
  {
   "id": "s10_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Джульеттс. Имя, данное в её честь."
  },
  {
   "id": "s11_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
-  "text": "Две тысячи двадцать второй. Самый трудный год. Многие закрывались. Вы — нет."
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Михаил — сооснователь дома. Это он назвал дело её именем — и с первого дня рядом с Юлей."
  },
  {
   "id": "s12_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
-  "text": "Татьяна. Оправа, без которой камень не держится."
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "И всё это время рядом была Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится."
  },
  {
   "id": "s13_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
-  "text": "Сегодня. Две тысячи моделей. Двадцать девять тысяч историй."
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Сегодня. Две тысячи моделей. Более трёх тысяч историй."
  },
  {
   "id": "s14_0",
   "voice": "ru-RU-SvetlanaNeural",
-  "rate": "-2%",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Света, десять лет. Картье были домом четырёх поколений. У Джульеттс уже есть следующая глава."
  },
  {
   "id": "s15_0",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "В тысяча девятьсот шестьдесят девятом в нашем доме появился браслет, который закрывают маленькой отвёрткой."
  },
  {
   "id": "s15_1",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
-  "text": "Love. Любовь, закреплённая навсегда."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Лав. Любовь, закреплённая навсегда."
  },
  {
   "id": "s16_0",
   "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "rate": "-12%",
+  "pitch": "-2Hz",
   "text": "Lumière."
  },
  {
   "id": "s16_1",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
-  "text": "Свет — вам как женщине."
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Свет — вам, Юля, как девушке."
  },
  {
   "id": "s17_0",
   "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "rate": "-12%",
+  "pitch": "-2Hz",
   "text": "Union."
  },
  {
   "id": "s17_1",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Союз — вам как основательнице."
  },
  {
   "id": "s17_2",
-  "voice": "fr-FR-VivienneMultilingualNeural",
-  "rate": "-6%",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
   "text": "Внутри нет ничьих имён. Это место — для вашего."
+ },
+ {
+  "id": "s18_0",
+  "voice": "ru-RU-SvetlanaNeural",
+  "rate": "-10%",
+  "pitch": "-2Hz",
+  "text": "Семья Картье поздравляет с днём рождения ювелирный дом Джульеттс и его основательницу — Юлию."
  }
 ]
