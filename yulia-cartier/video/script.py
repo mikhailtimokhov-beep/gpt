@@ -22,33 +22,33 @@ S = [
   dict(t='letter', d=13, img='lf', mono='LF', name='Луи-Франсуа Картье', meta='Париж · Монторгёй, 29 · 1847',
        hand='Юлия, я начинал с мастерской своего учителя и одного верстака. Вы — с одного браслета для мамы.',
        precept='Не стесняйтесь маленького, Юля. Так рождаются реликвии.',
-       voice=[('fr', 'Ma chère Julie.'), ('tr', 'Моя дорогая Юлия.'), ('hand', None),
+       voice=[('tr', 'Моя дорогая Юлия.'), ('hand', None),
               ('frp', "Ne craignez jamais les petits commencements, Julie."), ('precept', None)]),
   dict(t='letter', d=13, img='alfred', mono='A', name='Альфред Картье', meta='Париж в осаде · 1870',
-       hand='Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. Дом держится не на одном человеке: рядом с вами, Юлия, — Михаил и мама Татьяна. У вас тоже были свои трудные годы — и вы выстояли.',
+       hand='Когда Париж был в осаде, я увёз всё, что у нас было, в Лондон — и сохранил дом. Дом держится не на одном человеке: рядом с вами, Юлия, — Михаил и Татьяна. У вас тоже были свои трудные годы — и вы выстояли.',
        precept='Дом проверяют не праздники, а осады.',
-       voice=[('fr', 'Chère Julie.'), ('tr', 'Дорогая Юлия.'), ('hand', None),
+       voice=[('tr', 'Дорогая Юлия.'), ('hand', None),
               ('frp', "Une maison se juge dans la tempête, pas dans les fêtes."), ('precept', None)]),
   dict(t='letter', d=13, img='louis', mono='L', name='Луи Картье', meta='Рю де ла Пэ, 13 · 1904',
        hand='Я сделал часы для друга-авиатора: в полёте ему было неудобно доставать карманные. Лучшие вещи рождаются из заботы об одном человеке — как ваши гравировки, Юля.',
        precept='Делайте для одного — и вас узнает весь мир.',
-       voice=[('fr', 'Chère Madame Julie.'), ('tr', 'Дорогая мадам Юлия.'), ('hand', None),
+       voice=[('tr', 'Дорогая мадам Юлия.'), ('hand', None),
               ('frp', "Créez pour une seule personne, et le monde entier vous reconnaîtra."), ('precept', None)]),
   dict(t='letter', d=13, img='pierre', mono='P', name='Пьер Картье', meta='Нью-Йорк · Пятая авеню · 1917',
        hand='Я продал «Надежду», рассказав историю алмаза. А дом на Пятой авеню получил за нитку жемчуга. Вещь стоит столько, сколько в ней смысла.',
        precept='Не бойтесь цены своих историй, Юлия, — и не бойтесь расти.',
-       voice=[('fr', 'Chère Julie.'), ('tr', 'Дорогая Юлия.'), ('hand', None),
+       voice=[('tr', 'Дорогая Юлия.'), ('hand', None),
               ('frp', "N'ayez pas peur de grandir, Julie."), ('precept', None)]),
   dict(t='letter', d=13, img='jacques', mono='J', name='Жак Картье', meta='Лондон · Индия · 1911',
        hand='Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: «Красота в деталях — это Juliette’s».',
        say_hand='Я объездил Индию и Персидский залив в поисках камней и слушал людей больше, чем торговался. Ваши клиентки пишут: красота в деталях — это Джульеттс.',
        precept='Храните их истории, Юля. Однажды они станут вашей книгой.',
-       voice=[('fr', 'Ma chère Julie.'), ('tr', 'Моя дорогая Юлия.'), ('hand', None),
+       voice=[('tr', 'Моя дорогая Юлия.'), ('hand', None),
               ('frp', "Gardez précieusement leurs histoires, Julie."), ('precept', None)]),
   dict(t='letter', d=13, img='jeanne', mono='JT', name='Жанна Туссен', meta='«Пантера» · 1933',
        hand='Я не умела рисовать — я умела знать, чего хочет женщина. Луи доверил мне вкус всего дома. Вам, Джульетта, доверили свой.',
        precept='Никому не отдавайте свой вкус. И не забывайте украшать себя.',
-       voice=[('fr', 'Ma chère Juliette.'), ('tr', 'Моя дорогая Джульетта.'), ('hand', None),
+       voice=[('tr', 'Моя дорогая Джульетта.'), ('hand', None),
               ('frp', "Ne confiez votre goût à personne."), ('precept', None)]),
 
   dict(t='photo', d=6.5, img='yulia2017-studio', logo_img='mamy-braslets-logo.png', year='2017', hand='Один браслет. Одна мама. Одна идея.',
@@ -59,8 +59,8 @@ S = [
        say_hand='Михаил — сооснователь дома. Это он назвал дело её именем — и с первого дня рядом с Юлей.', voice=[('hand', None)]),
   dict(t='dark', d=7.4, hand='Самый трудный год. Многие закрывались. Но только не вы.',
        say_hand='Две тысячи двадцать второй. Самый трудный год. Многие закрывались. Но только не вы.', voice=[('hand', None)]),
-  dict(t='photo', d=8, img='tatyana-classic', year='Татьяна', hand='И всё это время рядом была мама. Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.',
-       say_hand='И всё это время рядом была мама. Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.', voice=[('hand', None)]),
+  dict(t='photo', d=8, img='tatyana-classic', year='Татьяна', hand='И всё это время рядом была Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.',
+       say_hand='И всё это время рядом была Татьяна — руководитель производства: через её руки проходит каждое изделие. Оправа, без которой камень не держится.', voice=[('hand', None)]),
   dict(t='photo', d=7, img='yulia-classic', year='Сегодня', hand='2 000 моделей · 29 000 историй.',
        say_hand='Сегодня. Две тысячи моделей. Двадцать девять тысяч историй.', voice=[('hand', None)]),
   dict(t='photo', d=8, img='sveta-classic', year='Света, 10', hand='Картье были домом четырёх поколений. У Juliette’s уже есть следующая глава.',
@@ -70,7 +70,7 @@ S = [
        say_hand='В тысяча девятьсот шестьдесят девятом в нашем доме появился браслет, который закрывают маленькой отвёрткой.',
        precept='Love. Любовь, закреплённая навсегда.', say_precept='Лав. Любовь, закреплённая навсегда.', sig='Жанна Туссен', logo='Cartier',
        voice=[('hand', None), ('precept', None)]),
-  dict(t='gift', d=5.2, img='../photos/earrings-1.jpg', k='Première · Lumière', title='Свет — вам как девушке',
+  dict(t='gift', d=5.2, img='../photos/graded/earrings-love-pave.jpg', k='Première · Lumière', title='Свет — вам как девушке',
        voice=[('frf', 'Lumière.'), ('say', 'Свет — вам, Юля, как девушке.')]),
   dict(t='gift', d=5.5, img='../photos/earrings-2.jpg', contain=True, k='Seconde · Union', title='Союз — вам как основательнице',
        hand='Внутри нет ничьих имён. Это место — для вашего.',
@@ -81,10 +81,14 @@ S = [
   dict(t='final', d=10.6),
 ]
 
-WARM = 'highpass=f=70,equalizer=f=220:t=q:w=1:g=2.5,equalizer=f=6500:t=q:w=2:g=-3,acompressor=threshold=-20dB:ratio=2.5:attack=15:release=200,aecho=0.85:0.5:45:0.12'
+def soften(t):
+    # breathing pauses before the important words: a dash or colon becomes a pause
+    return t.replace(' — ', '... ').replace(': ', '... ')
+
+WARM = 'asetrate=22050*0.985,aresample=22050,highpass=f=70,equalizer=f=220:t=q:w=1:g=2.5,equalizer=f=6500:t=q:w=2:g=-3,acompressor=threshold=-20dB:ratio=2.5:attack=15:release=200,aecho=0.85:0.5:45:0.12'
 def piper(model, text, out, scale=1.0):
     subprocess.run([f'{TTS}/piper/piper', '-m', f'{TTS}/{model}.onnx', '--length_scale', str(scale),
-                    '--noise_scale', '0.72', '--noise_w', '0.9', '--sentence_silence', '0.5', '-f', out + '.raw.wav'],
+                    '--noise_scale', '0.78', '--noise_w', '1.0', '--sentence_silence', '0.7', '-f', out + '.raw.wav'],
                    input=text.encode(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', out + '.raw.wav', '-af', WARM, '-ar', str(SR), out], check=True)
     x, sr = sf.read(out)
@@ -119,7 +123,7 @@ def synth(kind, text, cid=None):
     if kind in ('fr_m', 'fr_f'):
         y = trim(piper('fr-gilles-low' if kind == 'fr_m' else 'fr-siwis-medium', text, '/tmp/p.wav', 1.12))
     else:
-        y = trim(piper('ru-irinia-medium', text, '/tmp/p.wav', 1.1))
+        y = trim(piper('ru-irinia-medium', soften(text), '/tmp/p.wav', 1.2))
     y = y / (np.max(np.abs(y)) + 1e-9) * .85
     sf.write(key, y, SR); return y
 
@@ -140,7 +144,7 @@ for si, s in enumerate(S):
         if kind == 'frp': cues['precept'] = round(cur, 2)
         if kind == 'precept' and 'precept' not in cues: cues['precept'] = round(cur, 2)
         if kind == 'frf' and s['t'] == 'gift': cues['title'] = round(cur, 2)
-        cur += dur + 0.45
+        cur += dur + 0.6
     if s.get('final_voice'):
         y = load_clip(FINAL_VOICE); y = y / (np.max(np.abs(y)) + 1e-9) * 1.0
         clips.append((t + 1.0, y)); duck.append((t + 1.0, t + 1.0 + len(y) / SR, 'final'))
