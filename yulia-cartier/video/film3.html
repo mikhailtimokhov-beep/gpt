@@ -83,7 +83,7 @@ function handSpans(text) {
 }
 S.forEach(function (s, i) {
   var h = '', C = s.cues || {};
-  var bg = s.bg || (s.t === 'letter' ? 'sepia' : s.t === 'dark' ? 'black' : 'wine');
+  var bg = 'wine';   // one wine-red backdrop for every scene
   if (s.t === 'title') h =
     '<div class="frame-line"></div><div class="seal" data-in="0.3"><span>J</span></div>' +
     '<p class="kicker" data-in="1.2">Фильм-письмо · 31 октября</p>' +
