@@ -74,7 +74,7 @@ S = [
        hand='Внутри нет ничьих имён. Это место — для вашего.',
        voice=[('frf', 'Union.'), ('say', 'Союз — вам как основательнице.'), ('hand', None)]),
 
-  dict(t='photo', d=7.8, img='yfinal', year='', hand='Ma chère Julie…', final_voice=True),
+  dict(t='photo', d=7.8, img='misha', year='Миша', hand='Ma chère Julie…', final_voice=True),
   dict(t='final', d=10.6),
 ]
 

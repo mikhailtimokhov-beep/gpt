@@ -55,7 +55,7 @@ def process(name, out, blur=90):
 JOBS = [('solo-2017.jpg', 'y2017.jpg'), ('solo-bike.jpg', 'ybike.jpg'), ('solo-today.jpg', 'ytoday.jpg'),
         ('solo-selfie.jpg', 'yselfie.jpg'), ('solo-us.jpg', 'yfinal.jpg'), ('yulia-blossom.jpg', 'yblossom.jpg', 260),
         ('yulia-courage.jpg', 'ycourage.jpg'), ('tatyana-2.jpg', 'tatyana.jpg'), ('tatyana-1.jpg', 'tatyana-hall.jpg'),
-        ('sveta', 'sveta.jpg')]
+        ('sveta', 'sveta.jpg'), ('misha.jpg', 'misha.jpg')]
 for job in JOBS:
     if len(sys.argv) > 1 and job[1] not in sys.argv[1:]: continue
     process(*job)

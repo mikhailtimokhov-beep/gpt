@@ -265,8 +265,8 @@ window.S = [
  {
   "t": "photo",
   "d": 7.8,
-  "img": "yfinal",
-  "year": "",
+  "img": "misha",
+  "year": "Миша",
   "hand": "Ma chère Julie…",
   "final_voice": true,
   "a": 284.69,
