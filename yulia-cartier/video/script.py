@@ -51,7 +51,7 @@ S = [
        voice=[('fr', 'Ma chère Juliette.'), ('tr', 'Моя дорогая Джульетта.'), ('hand', None),
               ('frp', "Ne confiez votre goût à personne."), ('precept', None)]),
 
-  dict(t='photo', d=6.5, img='family2017', year='2017', hand='Mamy Braslets. Один браслет. Одна мама. Одна идея.',
+  dict(t='photo', d=6.5, img='yulia2017-studio', logo_img='mamy-braslets-logo.png', year='2017', hand='Один браслет. Одна мама. Одна идея.',
        say_hand='Две тысячи семнадцатый. Мами Браслетс. Один браслет. Одна мама. Одна идея.', voice=[('hand', None)]),
   dict(t='photo', d=5.2, img='yblossom', pos='42% 40%', year='Juliette’s', hand='Имя, данное в её честь.',
        say_hand='Джульеттс. Имя, данное в её честь.', voice=[('hand', None)]),
