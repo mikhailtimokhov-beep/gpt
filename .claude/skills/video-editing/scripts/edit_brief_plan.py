@@ -1,0 +1,4531 @@
+#!/usr/bin/env python3
+"""Route a natural-language edit brief to this skill's local workflow.
+
+The script is deliberately deterministic: it scans a short user brief for
+production signals, emits an ordered runbook with existing scripts, and writes
+JSON/Markdown artifacts. It does not call an LLM, render media, upload files,
+or submit paid generation jobs.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import shlex
+import sys
+from datetime import datetime, timezone
+from fractions import Fraction
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+
+
+VERSION = "edit_brief_plan.v1"
+IMAGEGEN_ROUTING = "生图优先使用 Codex 内置 `image_gen` 工具，即 OpenAI GPT Image 2（`gpt-image-2`）。"
+
+PLATFORM_ALIASES: Sequence[Tuple[str, Sequence[str]]] = (
+    ("xhs", ("小红书", "rednote", "red note", "red", "xhs")),
+    ("douyin", ("抖音", "douyin", "tiktok china")),
+    ("wxch", ("视频号", "微信视频号", "wechat channels", "wxch")),
+    ("tiktok", ("tiktok", "tik tok")),
+    ("youtube_shorts", ("youtube shorts", "yt shorts", "shorts")),
+    ("instagram_reels", ("instagram reels", "reels")),
+)
+
+SIGNAL_KEYWORDS: Mapping[str, Sequence[str]] = {
+    "runtime_preflight": (
+        "runtime preflight",
+        "toolchain preflight",
+        "ffmpeg capability",
+        "ffmpeg capabilities",
+        "ffmpeg filter check",
+        "missing ffmpeg filter",
+        "dependency check",
+        "environment check",
+        "运行环境预检",
+        "工具链预检",
+        "ffmpeg 能力",
+        "ffmpeg 滤镜检查",
+        "ffmpeg 缺少滤镜",
+        "依赖检查",
+        "环境检查",
+    ),
+    "source_ingest": (
+        "raw footage",
+        "footage",
+        "素材目录",
+        "原始素材",
+        "素材堆",
+        "建项目",
+        "项目目录",
+        "folder",
+        "directory",
+    ),
+    "production_authorization": (
+        "production authorization",
+        "consent gate",
+        "upload consent",
+        "external upload approval",
+        "editorial reorder approval",
+        "content removal approval",
+        "paid generation approval",
+        "direct publish approval",
+        "voice clone",
+        "voice cloning",
+        "real person consent",
+        "minor consent",
+        "public figure permission",
+        "brand permission",
+        "ip permission",
+        "生产授权",
+        "授权合同",
+        "生成前授权",
+        "外部上传授权",
+        "重排授权",
+        "删减授权",
+        "付费生成授权",
+        "直接发布授权",
+        "声音克隆",
+        "克隆声音",
+        "真人授权",
+        "肖像授权",
+        "未成年人授权",
+        "公众人物授权",
+        "品牌授权",
+        "角色版权授权",
+    ),
+    "transcript": ("transcript", "whisper", "转写", "转录", "字幕", "caption", "subtitles", "口播", "voiceover"),
+    "subtitle_style_preview": (
+        "subtitle style preview",
+        "caption style preview",
+        "preview subtitle styles",
+        "compare subtitle styles",
+        "字幕样式预览",
+        "字幕风格预览",
+        "预览字幕样式",
+        "对比字幕风格",
+        "三套字幕",
+        "选字幕风格",
+    ),
+    "subtitle_glyph_qa": (
+        "subtitle glyph qa",
+        "font glyph coverage",
+        "subtitle font coverage",
+        "missing subtitle glyph",
+        "missing glyph",
+        "tofu subtitle",
+        "tofu box",
+        "字幕字体覆盖",
+        "字幕缺字",
+        "字幕方框",
+        "字幕豆腐块",
+        "豆腐块",
+        "缺字",
+        "字体缺字",
+        "缺失字形",
+        "生僻字字幕",
+        "emoji 字幕",
+    ),
+    "subtitle_render_review": (
+        "subtitle render review",
+        "caption render review",
+        "burned caption review",
+        "burned subtitle review",
+        "captions not showing",
+        "subtitles not showing",
+        "caption missing from final",
+        "verify final captions",
+        "字幕渲染复核",
+        "字幕烧录复核",
+        "检查成片字幕",
+        "字幕没显示",
+        "字幕没有烧进成片",
+        "最终字幕可读性",
+        "成片字幕缺失",
+        "成片字幕被裁切",
+        "成片字幕被遮挡",
+    ),
+    "framing_preview": (
+        "framing preview",
+        "aspect treatment preview",
+        "compare cover contain blur",
+        "preserve source framing",
+        "do not crop",
+        "no crop",
+        "画幅处理预览",
+        "构图预览",
+        "裁切预览",
+        "对比裁切和留边",
+        "保留原始构图",
+        "不要裁切",
+        "不能裁掉",
+        "模糊背景填充",
+    ),
+    "flash_safety_qa": (
+        "flash safety",
+        "flashing safety",
+        "photosensitivity",
+        "photosensitive",
+        "seizure risk",
+        "strobe risk",
+        "rapid flashing",
+        "accessibility flashing",
+        "闪烁安全",
+        "光敏风险",
+        "光敏性风险",
+        "癫痫风险",
+        "频闪风险",
+        "高频闪烁",
+        "红色闪烁",
+        "无障碍闪烁",
+    ),
+    "temporal_artifact_qa": (
+        "temporal artifact",
+        "single frame artifact",
+        "flash frame",
+        "frame tear",
+        "one frame glitch",
+        "transient glitch",
+        "单帧异常",
+        "单帧伪影",
+        "闪帧",
+        "画面撕裂",
+        "瞬态异常",
+        "少数帧变形",
+        "局部突变",
+    ),
+    "stream_coverage_qa": (
+        "stream coverage qa",
+        "stream duration mismatch",
+        "truncated video stream",
+        "audio longer than video",
+        "video shorter than audio",
+        "missing ending frames",
+        "decoded frame count",
+        "音视频轨时长不一致",
+        "视频轨被截短",
+        "音频比视频长",
+        "视频比音频短",
+        "结尾画面丢失",
+        "解码帧数",
+        "流覆盖检查",
+    ),
+    "narration_loudness_qa": (
+        "narration loudness consistency",
+        "phrase loudness",
+        "segment loudness",
+        "voiceover consistency",
+        "tts loudness",
+        "tts consistency",
+        "旁白响度一致",
+        "旁白音量一致",
+        "配音响度一致",
+        "分段响度",
+        "逐句响度",
+        "旁白忽大忽小",
+        "配音忽大忽小",
+    ),
+    "audio_channel_qa": (
+        "audio channel qa",
+        "stereo channel qa",
+        "stereo balance",
+        "left right balance",
+        "channel onset skew",
+        "interchannel skew",
+        "phase correlation",
+        "phase cancellation",
+        "mono compatibility",
+        "mono fold-down",
+        "左右声道检查",
+        "左右声道平衡",
+        "声道错位",
+        "声道起始偏移",
+        "相位抵消",
+        "反相",
+        "单声道兼容",
+        "单声道折叠",
+    ),
+    "audio_dropout_qa": (
+        "audio dropout qa",
+        "audio dropout",
+        "digital silence",
+        "brief audio gap",
+        "missing audio samples",
+        "chopped speech",
+        "audio cut out",
+        "sound cuts out",
+        "音频掉点",
+        "声音掉点",
+        "短促静音",
+        "数字静音",
+        "声音突然断掉",
+        "音频突然断掉",
+        "吞音",
+        "断音",
+    ),
+    "caption_speech_qa": (
+        "caption speech qa",
+        "caption audio alignment",
+        "subtitle speech alignment",
+        "orphan caption",
+        "silent caption",
+        "caption without speech",
+        "caption timing against speech",
+        "字幕与人声对齐",
+        "字幕人声对齐",
+        "字幕没有声音",
+        "字幕对不上声音",
+        "字幕提前",
+        "字幕延迟",
+        "孤立字幕",
+    ),
+    "semantic_review": (
+        "semantic transcript review",
+        "context-aware transcript",
+        "semantic subtitle review",
+        "语义校稿",
+        "语义审校",
+        "上下文校稿",
+        "全篇校稿",
+        "专业术语校稿",
+        "字幕错词",
+    ),
+    "multi_take": ("multi take", "takes", "多 take", "多条素材", "多个 take", "选 take", "挑 take"),
+    "target_script": (
+        "target script",
+        "script alignment",
+        "script-based edit",
+        "按脚本剪",
+        "按稿剪",
+        "目标脚本",
+        "确认稿",
+        "成片稿",
+        "对稿剪辑",
+        "文案对齐",
+        "照这个稿子",
+    ),
+    "long_to_short": (
+        "long to short",
+        "long video",
+        "长视频",
+        "访谈",
+        "播客",
+        "直播回放",
+        "拆条",
+        "拆短视频",
+        "精华",
+        "highlight",
+        "clip",
+        "clips",
+    ),
+    "batch_shorts": ("batch", "批量", "多条短视频", "3 条", "三条", "5 条", "五条", "several shorts", "multiple shorts"),
+    "hook": ("hook", "开头", "前三秒", "3 秒", "3秒", "opening", "first three seconds"),
+    "multimodal_dead_air": (
+        "multimodal dead air",
+        "multimodal silence",
+        "silence and freeze",
+        "silent and static",
+        "audio silence plus video freeze",
+        "静音且画面静止",
+        "静音和静帧",
+        "静默和静止",
+        "声音空白画面不动",
+        "多模态死区",
+    ),
+    "cleanup_silence": ("remove silence", "silence", "停顿", "空白", "冷场", "jump cut", "剪紧", "紧凑"),
+    "cleanup_words": ("口头禅", "卡壳", "重复句", "filler", "stutter", "rough cut"),
+    "story_rewrite": ("rewrite", "清稿", "重写", "重组", "故事线", "叙事", "结构", "story"),
+    "content_guard": ("合规", "审核", "违禁", "限流", "risk", "guard", "发布前检查"),
+    "source_receipts": ("事实", "数据", "新闻", "来源", "source", "citation", "proof", "claim"),
+    "broll": ("b-roll", "broll", "素材画面", "换画面", "补画面", "stock", "pexels", "pixabay", "coverr"),
+    "generated_assets": (
+        "生图",
+        "imagegen",
+        "gpt-image",
+        "gpt image",
+        "dreamina",
+        "即梦",
+        "jimeng",
+        "veo",
+        "sora",
+        "ltx",
+        "wan",
+        "生成视频",
+        "generated video",
+    ),
+    "storyboard_animatic": (
+        "storyboard animatic",
+        "timed storyboard",
+        "storyboard timing preview",
+        "animatic",
+        "动态分镜",
+        "分镜预演",
+        "分镜时长预览",
+        "故事板预演",
+    ),
+    "provider_capabilities": (
+        "provider capability",
+        "provider capabilities",
+        "surface profile",
+        "provider limits",
+        "generation controls",
+        "ui controls",
+        "api controls",
+        "供应商能力",
+        "生成能力核验",
+        "模型能力核验",
+        "界面参数核验",
+        "生成参数上限",
+        "参考素材上限",
+    ),
+    "generation_references": (
+        "multimodal generation reference",
+        "multimodal references",
+        "reference-guided generation",
+        "reference video generation",
+        "reference audio generation",
+        "refimages",
+        "refvideos",
+        "refaudios",
+        "多模态参考生成",
+        "多模态参考素材",
+        "参考图参考视频参考音频",
+        "参考视频生成",
+        "参考音频生成",
+        "图片视频音频参考",
+        "生成参考素材预检",
+    ),
+    "generation_lessons": (
+        "generation lessons",
+        "generation lesson",
+        "prompt lessons",
+        "prompt lesson library",
+        "生成经验库",
+        "生成经验",
+        "提示词经验",
+        "复用复盘经验",
+    ),
+    "sequence_continuity": (
+        "sequence continuity",
+        "cross-shot continuity",
+        "multi-shot continuity",
+        "adjacent clip continuity",
+        "跨镜头连续性",
+        "多镜头连续性",
+        "镜头衔接复核",
+        "角色连续性",
+        "道具连续性",
+        "组装前连续性",
+    ),
+    "sequence_handoff": (
+        "sequence handoff",
+        "shot handoff",
+        "shot-to-shot handoff",
+        "handoff matrix",
+        "edit boundary matrix",
+        "receive in",
+        "handoff out",
+        "镜头接力",
+        "镜头交接",
+        "镜头衔接设计",
+        "生成前连续性设计",
+        "剪辑边界矩阵",
+        "180度轴",
+        "180°轴",
+    ),
+    "generation_chain_handoff": (
+        "generation chain handoff",
+        "clip tail handoff",
+        "tail frame handoff",
+        "last frame handoff",
+        "sequential generation",
+        "chain generated clips",
+        "上一镜末帧",
+        "上一镜尾帧",
+        "末帧接力",
+        "尾帧接力",
+        "连续生成",
+        "顺序生成",
+        "逐镜生成",
+        "生成片接力",
+    ),
+    "reference_story_formula": (
+        "reference story formula",
+        "story formula transfer",
+        "emotion formula transfer",
+        "transfer emotional arc",
+        "reference narrative mechanism",
+        "参考故事公式",
+        "参考叙事公式",
+        "情绪公式迁移",
+        "迁移情绪机制",
+        "复刻情绪结构",
+        "只学结构不复制画面",
+    ),
+    "audio_design": ("bgm", "music", "配乐", "音效", "sfx", "sound design", "声音设计"),
+    "final_audio_storyboard": (
+        "final audio storyboard",
+        "locked edl audio",
+        "locked visual edl audio",
+        "post-edl audio",
+        "rebuild audio after edit",
+        "最终声音分镜",
+        "最终音频分镜",
+        "锁定edl后做声音",
+        "锁定 edl 后做声音",
+        "锁定画面后做声音",
+        "视觉剪辑锁定后配音",
+        "按最终时间线重建声音",
+    ),
+    "video_stabilization": (
+        "video stabilization",
+        "stabilize video",
+        "camera shake",
+        "shaky footage",
+        "手持抖动",
+        "画面抖动",
+        "视频防抖",
+        "稳定画面",
+        "稳定视频",
+    ),
+    "video_enhancement": (
+        "video upscale",
+        "upscale video",
+        "upscale to 4k",
+        "video enhancement",
+        "enhance video quality",
+        "frame interpolation",
+        "interpolate fps",
+        "motion interpolation",
+        "视频放大",
+        "视频超分",
+        "增强视频清晰度",
+        "视频补帧",
+        "补到60帧",
+        "补到 60 帧",
+        "升到60帧",
+        "升到 60 帧",
+    ),
+    "chroma_key": (
+        "chroma key",
+        "chroma-key",
+        "green screen",
+        "blue screen",
+        "greenscreen",
+        "bluescreen",
+        "key out background",
+        "绿幕",
+        "蓝幕",
+        "色键抠像",
+        "绿幕抠像",
+        "蓝幕抠像",
+        "绿幕换背景",
+        "蓝幕换背景",
+    ),
+    "scoped_video_edit": (
+        "scoped video edit",
+        "precise video edit",
+        "change only the background",
+        "change only the outfit",
+        "change only the packaging",
+        "keep everything else unchanged",
+        "preserve everything else",
+        "局部视频编辑",
+        "局部修改视频",
+        "局部重绘视频",
+        "只改背景",
+        "只改衣服",
+        "只改服装",
+        "只替换包装",
+        "其余不变",
+        "其他保持不变",
+        "视频换装",
+        "替换包装设计",
+    ),
+    "speed_ramp": (
+        "speed ramp",
+        "speed-ramp",
+        "velocity edit",
+        "变速坡度",
+        "速度坡度",
+        "速度渐变",
+        "局部变速",
+        "快慢变速",
+        "慢动作",
+        "慢镜头",
+    ),
+    "freeze_punch": (
+        "freeze punch",
+        "freeze-punch",
+        "freeze frame punch",
+        "freeze-frame emphasis",
+        "impact freeze",
+        "定格强调",
+        "定格冲击",
+        "关键帧定格",
+        "瞬间定格",
+        "定格推近",
+    ),
+    "generated_motion_window": (
+        "generated motion window",
+        "active motion window",
+        "frozen lead-in",
+        "frozen lead in",
+        "delayed motion",
+        "generated clip starts frozen",
+        "trim to active motion",
+        "生成视频有效运动区间",
+        "生成片段有效运动",
+        "生成视频开头不动",
+        "生成片段开头不动",
+        "生成视频延迟运动",
+        "冻结开头",
+        "裁到动作开始",
+    ),
+    "audio_transition": (
+        "j-cut",
+        "j cut",
+        "jcut",
+        "l-cut",
+        "l cut",
+        "lcut",
+        "pre-lap audio",
+        "audio prelap",
+        "audio overlap edit",
+        "声音先行",
+        "声音提前进入",
+        "画面先切声音后走",
+        "声音延续",
+        "音频交叠剪辑",
+    ),
+    "audio_sync": ("外录", "领夹麦", "lav", "recorder", "scratch audio", "audio sync", "对齐音频", "同步音频"),
+    "multicam_switch": (
+        "active speaker multicam",
+        "audio guided multicam",
+        "automatic multicam switching",
+        "auto multicam switching",
+        "switch cameras by speaker",
+        "speaker camera switching",
+        "多机位自动切镜",
+        "多机位自动导播",
+        "按说话人切机位",
+        "按说话人自动切镜",
+        "按发言人切镜头",
+        "自动切换说话人机位",
+    ),
+    "frame_rate_conform": (
+        "variable frame rate",
+        "constant frame rate",
+        "vfr source",
+        "vfr footage",
+        "convert vfr",
+        "conform to cfr",
+        "phone video drift",
+        "screen recording drift",
+        "audio drifts after cuts",
+        "可变帧率",
+        "固定帧率",
+        "帧率归一",
+        "转恒定帧率",
+        "手机视频音画漂移",
+        "录屏音画漂移",
+        "剪完音画漂移",
+    ),
+    "loop_fill": (
+        "loop clip",
+        "repeat clip",
+        "loop video",
+        "video loop",
+        "background loop",
+        "seamless loop",
+        "fill a fixed duration",
+        "fill the duration",
+        "循环视频",
+        "视频循环",
+        "重复视频",
+        "重复素材",
+        "循环背景",
+        "无缝循环",
+        "填满时长",
+        "补足时长",
+    ),
+    "ping_pong_loop": (
+        "ping pong loop",
+        "ping-pong loop",
+        "pingpong loop",
+        "boomerang video",
+        "boomerang loop",
+        "forward reverse loop",
+        "forward-reverse loop",
+        "play forward then backward",
+        "乒乓循环",
+        "乒乓播放",
+        "来回播放",
+        "正放倒放",
+        "正放再倒放",
+        "往返循环",
+    ),
+    "black_edge_trim": (
+        "trim black edges",
+        "remove black intro",
+        "remove black outro",
+        "remove leading black",
+        "remove trailing black",
+        "black frame at start",
+        "black frame at end",
+        "片头黑场",
+        "片尾黑场",
+        "去掉开头黑屏",
+        "去掉结尾黑屏",
+        "裁掉首尾黑帧",
+        "删除首尾黑场",
+        "清理首尾黑屏",
+    ),
+    "clip_assembly": (
+        "assemble clips",
+        "assemble videos",
+        "join clips",
+        "join videos",
+        "concat clips",
+        "concat videos",
+        "combine video clips",
+        "stitch clips",
+        "拼接视频",
+        "视频拼接",
+        "合并视频",
+        "合并多个视频",
+        "多段视频合并",
+        "多段素材拼接",
+        "片头片尾拼接",
+    ),
+    "interlace_conform": (
+        "deinterlace",
+        "de-interlace",
+        "interlaced footage",
+        "interlaced video",
+        "field order",
+        "top field first",
+        "bottom field first",
+        "telecine",
+        "3:2 pulldown",
+        "combing artifact",
+        "combing artifacts",
+        "去交错",
+        "反交错",
+        "隔行扫描",
+        "交错扫描",
+        "场序",
+        "上场优先",
+        "下场优先",
+        "电视电影转换",
+        "梳齿",
+        "梳状条纹",
+    ),
+    "screen_focus": ("录屏", "screen recording", "demo", "cursor", "点击", "热点", "focus"),
+    "pip": ("facecam", "webcam", "小窗", "pip", "camera overlay", "摄像头"),
+    "color_grade": ("调色", "lut", "color grade", "cinematic", "色彩", "film look"),
+    "render": ("render", "渲染", "导出", "输出", "成片", "final mp4"),
+    "qa": ("qa", "质检", "黑屏", "静音", "静帧", "检查成片"),
+    "reference_edit_rhythm": (
+        "reference edit rhythm",
+        "edit rhythm reference",
+        "match edit rhythm",
+        "reference pacing",
+        "参考视频节奏",
+        "参考片节奏",
+        "剪辑节奏参考",
+        "照这个视频节奏",
+        "复刻剪辑结构",
+        "参考广告节奏",
+    ),
+    "lip_sync_review": (
+        "lip sync",
+        "lip-sync",
+        "lipsync",
+        "mouth sync",
+        "lip synchronization",
+        "对口型",
+        "口型同步",
+        "唇形同步",
+        "唇音同步",
+        "数字人口型",
+    ),
+    "review_proxy": ("review proxy", "审片代理", "审片视频", "低码率审片", "时间码审片", "timecode review"),
+    "multi_platform": ("三平台", "多平台", "multi platform", "多个平台", "xhs douyin", "小红书 抖音"),
+    "hdr_sdr": (
+        "hdr to sdr",
+        "hdr-to-sdr",
+        "tone map",
+        "tone-map",
+        "tonemap",
+        "rec.709",
+        "rec709",
+        "iphone hdr",
+        "hlg",
+        "smpte2084",
+        "pq hdr",
+        "hdr转sdr",
+        "hdr 转 sdr",
+        "hdr转rec709",
+        "hdr 转 rec709",
+        "hdr过曝",
+        "hdr 过曝",
+    ),
+    "delivery_encode": (
+        "target size",
+        "size limit",
+        "file size",
+        "视频压缩",
+        "压缩视频",
+        "压到",
+        "文件大小",
+        "上传限制",
+        "传输限制",
+    ),
+    "encode_quality_qa": (
+        "encode quality qa",
+        "encode quality comparison",
+        "re-encode quality",
+        "reencode quality",
+        "transcode quality",
+        "compression quality",
+        "ssim",
+        "psnr",
+        "压缩画质",
+        "重编码画质",
+        "转码画质",
+        "画质损失",
+        "编码损失",
+        "客观画质",
+    ),
+    "publish": ("发布", "上传", "publish", "upload", "发布包", "标题", "文案", "hashtag", "tags"),
+    "subtitle_sidecar": ("srt", "vtt", "ass", "字幕文件", "sidecar"),
+    "nle_handoff": ("premiere", "final cut", "fcpxml", "resolve", "达芬奇", "edl", "otio", "剪辑软件"),
+    "review_dashboard": ("dashboard", "review dashboard", "复核面板", "人工复核", "看板"),
+    "edit_revision": (
+        "edit revision",
+        "revision history",
+        "undo edit",
+        "redo edit",
+        "reversible edit",
+        "剪辑修订",
+        "修订历史",
+        "撤销剪辑",
+        "重做剪辑",
+        "回退剪辑",
+        "可逆修改",
+    ),
+    "edit_style_profile": (
+        "edit style profile",
+        "editing taste profile",
+        "creator taste",
+        "match my editing style",
+        "personal editing style",
+        "剪辑风格档案",
+        "个人剪辑风格",
+        "创作者剪辑风格",
+        "品牌剪辑风格",
+        "按我的风格剪",
+    ),
+    "edit_recipe_export": (
+        "export edit recipe",
+        "save edit as template",
+        "archive editing style",
+        "portable edit recipe",
+        "保存剪辑模板",
+        "归档剪辑风格",
+        "导出剪辑配方",
+        "保存为剪辑配方",
+    ),
+    "edit_recipe_replay": (
+        "replay edit recipe",
+        "apply edit recipe",
+        "reuse edit template",
+        "swap media and reuse",
+        "套用剪辑模板",
+        "回放剪辑配方",
+        "复用剪辑配方",
+        "换素材复刻",
+    ),
+}
+
+SIGNAL_LABELS: Mapping[str, str] = {
+    "runtime_preflight": "本机 FFmpeg / Node 运行能力预检",
+    "source_ingest": "素材导入 / 项目启动",
+    "production_authorization": "外部上传 / 侵入性剪辑 / 生成 / 真人与 IP 生产授权",
+    "transcript": "转写 / 字幕时间码",
+    "semantic_review": "全篇上下文语义校稿",
+    "multi_take": "多 take 阅读视图",
+    "target_script": "目标脚本对齐剪辑",
+    "long_to_short": "长视频拆短视频",
+    "batch_shorts": "多条短视频批量规划",
+    "hook": "前三秒 hook",
+    "multimodal_dead_air": "静音 + 静帧多模态死区剪辑",
+    "cleanup_silence": "去停顿 / jump cut",
+    "cleanup_words": "去口头禅 / 重复句",
+    "story_rewrite": "清稿 / 叙事重组",
+    "content_guard": "平台内容风控",
+    "source_receipts": "事实来源复核",
+    "broll": "B-roll / stock 素材规划",
+    "generated_assets": "生成式图片 / 视频素材",
+    "storyboard_animatic": "分镜静帧按真实时长预演 / 人工门禁",
+    "provider_capabilities": "生成 provider / UI / API 能力核验",
+    "generation_references": "生成图片 / 视频 / 音频参考素材预检",
+    "generation_lessons": "生成视频复核经验库",
+    "sequence_continuity": "生成视频跨镜头连续性复核",
+    "sequence_handoff": "生成前镜头接力 / 剪辑边界设计",
+    "generation_chain_handoff": "已审生成片末帧 → 下一镜精确首帧接力",
+    "reference_story_formula": "参考片情绪 / 叙事机制提取与目标分镜映射",
+    "audio_design": "BGM / SFX 声音设计",
+    "final_audio_storyboard": "锁定视觉 EDL 后重建最终声音分镜",
+    "video_stabilization": "手持素材稳定化 / 防抖",
+    "video_enhancement": "本地视频放大 / 可选运动补帧 / 全长 A-B 复核",
+    "chroma_key": "绿幕 / 蓝幕抠像与换背景",
+    "scoped_video_edit": "局部 AI 视频编辑变更/保护范围复核",
+    "speed_ramp": "局部 speed ramp / velocity edit",
+    "freeze_punch": "关键帧 freeze-punch 定格强调",
+    "generated_motion_window": "生成视频有效运动窗口 / 冻结开头裁切",
+    "audio_transition": "J-cut / L-cut 声画错位转场",
+    "audio_sync": "外录音频对齐",
+    "multicam_switch": "同步后按说话者音频生成多机位导播草稿",
+    "frame_rate_conform": "VFR 源素材检测 / CFR 工作副本",
+    "loop_fill": "短素材循环填满固定时长 / 接缝复核",
+    "ping_pong_loop": "动作素材正放倒放乒乓循环 / 双边界复核",
+    "black_edge_trim": "首尾黑场 + 静音交集裁切 / 边界复核",
+    "clip_assembly": "多源片段归一拼接 / 全接缝复核",
+    "interlace_conform": "交错 / telecine 检测与逐行工作副本",
+    "screen_focus": "录屏聚焦",
+    "pip": "摄像头小窗",
+    "color_grade": "调色计划",
+    "render": "渲染成片",
+    "qa": "成片质检",
+    "reference_edit_rhythm": "参考视频剪辑节奏量化 / 对照",
+    "lip_sync_review": "最终成片唇形 / 口型同步复核",
+    "review_proxy": "低码率时间码审片视频",
+    "multi_platform": "多平台导出",
+    "hdr_sdr": "PQ/HLG HDR → Rec.709 SDR 交付",
+    "delivery_encode": "目标大小交付编码",
+    "encode_quality_qa": "重编码衍生件 SSIM / PSNR 画质门禁",
+    "publish": "发布包 / 文案",
+    "subtitle_sidecar": "字幕 sidecar",
+    "subtitle_style_preview": "真实画面字幕样式预览 / 选择",
+    "subtitle_glyph_qa": "字幕逐字符字体覆盖 / 缺字门禁",
+    "subtitle_render_review": "最终成片字幕像素证据 / 完整审片门禁",
+    "framing_preview": "平台画幅 cover / contain / blur 预览与选择",
+    "flash_safety_qa": "最终成片亮度 / 饱和红闪烁风险预检",
+    "temporal_artifact_qa": "单帧 / 少数帧瞬态伪影筛查与逐帧复核",
+    "stream_coverage_qa": "最终音视频轨解码时间线 / 帧数覆盖门禁",
+    "narration_loudness_qa": "最终旁白逐短语响度一致性门禁",
+    "audio_channel_qa": "最终成片声道活动 / 平衡 / 相位 / mono fold-down 门禁",
+    "audio_dropout_qa": "最终人声 / 混音短促数字掉点复核门禁",
+    "caption_speech_qa": "字幕 cue 与独立人声活动对齐门禁",
+    "nle_handoff": "NLE 交接",
+    "review_dashboard": "人工复核面板",
+    "edit_revision": "剪辑 artifact 可逆修订",
+    "edit_style_profile": "创作者自有剪辑风格档案",
+    "edit_recipe_export": "导出可移植剪辑配方",
+    "edit_recipe_replay": "绑定新素材并回放剪辑配方",
+}
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def load_text(path: str) -> str:
+    return Path(path).expanduser().read_text(encoding="utf-8")
+
+
+def write_json(path: str, payload: Mapping[str, Any]) -> None:
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+        f.write("\n")
+
+
+def write_text(path: str, text: str) -> None:
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+
+
+def shell(parts: Sequence[str]) -> str:
+    return " ".join(shlex.quote(str(part)) for part in parts)
+
+
+def _contains(text: str, term: str) -> bool:
+    return term.lower() in text.lower()
+
+
+def detect_platforms(brief: str, override: Optional[str] = None) -> List[str]:
+    if override:
+        return [override]
+    found: List[str] = []
+    for platform, aliases in PLATFORM_ALIASES:
+        if any(_contains(brief, alias) for alias in aliases):
+            found.append(platform)
+    return found or ["douyin"]
+
+
+def infer_source_media(brief: str) -> str:
+    match = re.search(r"(?P<path>(?:~|\.{1,2}|/|[A-Za-z0-9_\-./])+?\.(?:mp4|mov|m4v|mkv|webm|avi|mp3|wav|m4a|aac|flac))", brief, re.IGNORECASE)
+    if not match:
+        return ""
+    return match.group("path").rstrip(".,;:，。；：")
+
+
+def infer_delivery_size_mib(brief: str) -> Optional[float]:
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mib|mb|兆)", brief, re.IGNORECASE)
+    return float(match.group(1)) if match else None
+
+
+def detect_signals(brief: str, platforms: Sequence[str]) -> List[Dict[str, Any]]:
+    signals: List[Dict[str, Any]] = []
+    for signal, terms in SIGNAL_KEYWORDS.items():
+        matched = [term for term in terms if _contains(brief, term)]
+        if matched:
+            signals.append(
+                {
+                    "id": signal,
+                    "label": SIGNAL_LABELS.get(signal, signal),
+                    "matched_terms": matched,
+                }
+            )
+
+    platform_terms = [platform for platform in platforms if platform]
+    if platform_terms:
+        signals.append(
+            {
+                "id": "platform",
+                "label": "目标平台",
+                "matched_terms": platform_terms,
+            }
+        )
+    return signals
+
+
+def _signal_ids(signals: Sequence[Mapping[str, Any]]) -> set[str]:
+    return {str(signal.get("id")) for signal in signals}
+
+
+def _transcript_path(source_media: str, explicit: Optional[str]) -> str:
+    if explicit:
+        return explicit
+    if source_media and not source_media.startswith("<"):
+        path = Path(source_media)
+        return str(path.with_name(f"{path.stem}_transcript.json"))
+    return "work/transcript.json"
+
+
+def _clean_script_path() -> str:
+    return "work/clean_script.md"
+
+
+def infer_target_fps(brief: str) -> Optional[str]:
+    match = re.search(
+        r"(?<![\d.])(\d+(?:\.\d+)?(?:/\d+)?)\s*(?:fps|帧(?:每秒)?)\b",
+        brief,
+        re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        value = float(Fraction(match.group(1)))
+    except (ValueError, ZeroDivisionError):
+        return None
+    if value <= 0 or value > 240:
+        return None
+    return match.group(1)
+
+
+def infer_loop_target(brief: str) -> Tuple[str, Optional[str]]:
+    times = re.search(
+        r"(?:loop|repeat|循环|重复).{0,16}?(\d+)\s*(?:times?|次|遍)\b",
+        brief,
+        re.IGNORECASE,
+    )
+    if times:
+        value = int(times.group(1))
+        if 2 <= value <= 10000:
+            return "times", str(value)
+    duration = re.search(
+        r"(?:loop|repeat|循环|重复|填满|补足).{0,20}?(?:to|到|至|为|成)?\s*"
+        r"(\d+(?:\.\d+)?)\s*(seconds?|secs?|s|秒|minutes?|mins?|m|分钟)\b",
+        brief,
+        re.IGNORECASE,
+    )
+    if not duration:
+        return "duration", None
+    value = float(duration.group(1))
+    unit = duration.group(2).lower()
+    if unit in {"minute", "minutes", "min", "mins", "m", "分钟"}:
+        value *= 60
+    if value <= 0 or value > 24 * 60 * 60:
+        return "duration", None
+    return "duration", f"{value:g}"
+
+
+def _add_step(steps: List[Dict[str, Any]], seen: set[str], step: Dict[str, Any]) -> None:
+    if step["id"] in seen:
+        return
+    seen.add(step["id"])
+    step["order"] = len(steps) + 1
+    steps.append(step)
+
+
+def _step(
+    step_id: str,
+    *,
+    phase: str,
+    script: str,
+    label: str,
+    reason: str,
+    command: str,
+    outputs: Sequence[str],
+    gate_category: Optional[str] = None,
+    required: bool = True,
+) -> Dict[str, Any]:
+    return {
+        "id": step_id,
+        "phase": phase,
+        "script": script,
+        "label": label,
+        "reason": reason,
+        "command": command,
+        "outputs": list(outputs),
+        "gate_category": gate_category or step_id,
+        "required": required,
+    }
+
+
+def build_plan(
+    brief: str,
+    *,
+    project_dir: str = ".",
+    source_media: str = "",
+    transcript: Optional[str] = None,
+    platform: Optional[str] = None,
+    python_bin: str = "python3",
+) -> Dict[str, Any]:
+    normalized = " ".join(brief.split())
+    source_media = source_media or infer_source_media(normalized)
+    platforms = detect_platforms(normalized, platform)
+    signals = detect_signals(normalized, platforms)
+    ids = _signal_ids(signals)
+    if "generation_references" in ids:
+        ids.update({"generated_assets", "provider_capabilities"})
+    if "generation_chain_handoff" in ids:
+        ids.update({"generated_assets", "sequence_handoff"})
+    if "reference_story_formula" in ids:
+        ids.add("generated_assets")
+    if "ping_pong_loop" in ids:
+        ids.discard("loop_fill")
+    primary_platform = platforms[0]
+    source_input = source_media or "<source_media>"
+    post_interlace_source = "work/source-progressive.mp4" if "interlace_conform" in ids else source_input
+    pre_black_trim_source = "work/source-cfr.mp4" if "frame_rate_conform" in ids else post_interlace_source
+    source = "work/source-edge-trimmed.mp4" if "black_edge_trim" in ids else pre_black_trim_source
+    transcript_path = _transcript_path(source_media, transcript)
+    clean_script = _clean_script_path()
+    blockers: List[str] = []
+    warnings: List[str] = []
+    notes: List[str] = []
+
+    if not normalized:
+        blockers.append("brief is empty")
+
+    if source_media and not Path(source_media).expanduser().exists():
+        blockers.append(f"source media not found: {source_media}")
+    elif not source_media and ids.intersection({"source_ingest", "transcript", "target_script", "long_to_short", "render", "publish", "review_proxy", "reference_edit_rhythm", "lip_sync_review", "subtitle_style_preview", "subtitle_render_review", "framing_preview", "flash_safety_qa", "temporal_artifact_qa", "stream_coverage_qa", "audio_channel_qa", "audio_dropout_qa", "caption_speech_qa", "multimodal_dead_air", "video_stabilization", "video_enhancement", "chroma_key", "scoped_video_edit", "speed_ramp", "freeze_punch", "generated_motion_window", "frame_rate_conform", "black_edge_trim", "loop_fill", "ping_pong_loop", "clip_assembly", "interlace_conform", "hdr_sdr", "delivery_encode", "encode_quality_qa", "edit_style_profile"}):
+        warnings.append("source media was not provided; commands use <source_media> placeholders")
+
+    if transcript and not Path(transcript).expanduser().exists():
+        warnings.append(f"transcript path was provided but does not exist yet: {transcript}")
+
+    steps: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    needs_transcript = bool(
+        ids.intersection(
+            {
+                "transcript",
+                "semantic_review",
+                "multi_take",
+                "target_script",
+                "long_to_short",
+                "hook",
+                "cleanup_words",
+                "story_rewrite",
+                "content_guard",
+                "source_receipts",
+                "broll",
+                "generated_assets",
+                "storyboard_animatic",
+                "sequence_handoff",
+                "audio_design",
+                "publish",
+                "subtitle_sidecar",
+            }
+        )
+    )
+    wants_render = bool(ids.intersection({"render", "publish", "target_script", "long_to_short", "batch_shorts", "reference_edit_rhythm", "subtitle_style_preview", "multimodal_dead_air", "cleanup_silence", "cleanup_words", "broll", "screen_focus", "pip", "color_grade", "edit_recipe_replay", "edit_style_profile"}))
+    wants_clean_script = bool(
+        ids.intersection({"story_rewrite", "hook", "content_guard", "source_receipts", "broll", "generated_assets", "storyboard_animatic", "sequence_handoff", "publish"})
+        and "target_script" not in ids
+    )
+
+    if ids.intersection({"source_ingest"}) or not source_media:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "source_inventory",
+                phase="ingest",
+                script="project_bootstrap.py",
+                label="Create project folders and source inventory",
+                reason="The brief refers to raw footage or lacks a concrete source path.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/project_bootstrap.py",
+                        "--source",
+                        source_input,
+                        "--project-dir",
+                        project_dir,
+                        "--strict",
+                    ]
+                ),
+                outputs=[f"{project_dir.rstrip('/')}/work/source_inventory.json", f"{project_dir.rstrip('/')}/project.md"],
+                gate_category="source_inventory",
+                required=False,
+            ),
+        )
+
+    if normalized:
+        generic_fallback_expected = (
+            "runtime_preflight" not in ids
+            and not ids.difference({"platform"})
+        )
+        needs_core_edit = wants_render or generic_fallback_expected or bool(
+            ids.intersection(
+                {
+                    "frame_rate_conform",
+                    "black_edge_trim",
+                    "loop_fill",
+                    "ping_pong_loop",
+                    "clip_assembly",
+                    "interlace_conform",
+                    "multimodal_dead_air",
+                    "cleanup_silence",
+                    "video_stabilization",
+                    "video_enhancement",
+                    "chroma_key",
+                    "speed_ramp",
+                    "freeze_punch",
+                    "audio_transition",
+                    "audio_sync",
+                    "multicam_switch",
+                    "storyboard_animatic",
+                    "generated_motion_window",
+                    "screen_focus",
+                    "pip",
+                    "color_grade",
+                    "review_proxy",
+                    "framing_preview",
+                    "hdr_sdr",
+                    "delivery_encode",
+                    "nle_handoff",
+                }
+            )
+        )
+        runtime_profiles = ["core_edit" if needs_core_edit else "media_io"]
+        if (wants_render and needs_transcript) or ids.intersection(
+            {
+                "subtitle_style_preview",
+                "subtitle_render_review",
+            }
+        ):
+            runtime_profiles.append("captions")
+        if wants_render or ids.intersection(
+            {
+                "qa",
+                "publish",
+                "stream_coverage_qa",
+                "encode_quality_qa",
+                "flash_safety_qa",
+                "temporal_artifact_qa",
+                "audio_channel_qa",
+                "audio_dropout_qa",
+                "caption_speech_qa",
+            }
+        ):
+            runtime_profiles.append("qa")
+        if "hdr_sdr" in ids:
+            runtime_profiles.append("hdr_sdr")
+        if "video_stabilization" in ids:
+            runtime_profiles.append("stabilization")
+        if "video_enhancement" in ids:
+            runtime_profiles.append("video_enhancement")
+        if "ping_pong_loop" in ids:
+            runtime_profiles.append("ping_pong_loop")
+        if "multicam_switch" in ids:
+            runtime_profiles.append("multicam_switch")
+        if "interlace_conform" in ids:
+            runtime_profiles.append("interlace")
+        if "black_edge_trim" in ids:
+            runtime_profiles.append("edge_black_trim")
+        if "storyboard_animatic" in ids:
+            runtime_profiles.append("storyboard_animatic")
+        if "audio_design" in ids:
+            runtime_profiles.append("audio_cue_mix")
+        if _contains(normalized, "remotion"):
+            runtime_profiles.append("remotion")
+        runtime_command = [python_bin, "scripts/runtime_preflight.py", "analyze"]
+        for profile_name in runtime_profiles:
+            runtime_command.extend(["--profile", profile_name])
+        runtime_command.extend(
+            [
+                "--output",
+                "work/runtime_preflight.json",
+                "--markdown",
+                "work/runtime_preflight.md",
+                "--strict",
+            ]
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "runtime_preflight",
+                phase="ingest",
+                script="runtime_preflight.py",
+                label="Verify local runtime capabilities before media work",
+                reason="The selected workflow should prove its FFmpeg/Node commands, encoders, and filters before a render or QA job starts.",
+                command=shell(runtime_command),
+                outputs=["work/runtime_preflight.json", "work/runtime_preflight.md"],
+                gate_category="runtime_preflight",
+            ),
+        )
+        notes.append(
+            "runtime_preflight.py only inspects command versions and declared component listings. "
+            "It does not run a real encode, hardware path, font render, or provider job; keep the later media and visual/audio QA gates."
+        )
+
+    if "interlace_conform" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "interlace_conform_plan",
+                phase="ingest",
+                script="interlace_conform.py",
+                label="Detect interlace/telecine and plan a progressive working copy",
+                reason="The brief identifies interlaced fields, combing, field-order risk, or telecine material.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/interlace_conform.py",
+                        "plan",
+                        source_input,
+                        "--delivery",
+                        post_interlace_source,
+                        "--comparison",
+                        "verify/interlace-source-vs-progressive.mp4",
+                        "--project-dir",
+                        project_dir,
+                        "--reviewed-by",
+                        "<reviewer>",
+                        "--note",
+                        "<field-structure evidence and decision>",
+                        "--output",
+                        "work/interlace_conform_plan.json",
+                        "--markdown",
+                        "work/interlace_conform_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/interlace_conform_plan.json",
+                    "work/interlace_conform_plan.md",
+                    post_interlace_source,
+                    "verify/interlace-source-vs-progressive.mp4",
+                ],
+                gate_category="interlace_conform_plan",
+            ),
+        )
+        notes.append(
+            "Run interlace_conform.py analyze first when field structure is uncertain. A telecine candidate must stop for IVTC; "
+            "true interlaced footage continues through apply, full-length 1x A/B playback, confirm, and live verify."
+        )
+
+    if "frame_rate_conform" in ids:
+        target_fps = infer_target_fps(normalized)
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "frame_rate_conform_plan",
+                phase="ingest",
+                script="frame_rate_conform.py",
+                label="Measure VFR cadence and create a CFR working-copy plan",
+                reason="The brief identifies variable-rate phone/screen footage or post-cut A/V drift.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/frame_rate_conform.py",
+                        "plan",
+                        post_interlace_source,
+                        "--fps",
+                        target_fps or "<target_fps>",
+                        "--delivery",
+                        source,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/frame_rate_conform_plan.json",
+                        "--markdown",
+                        "work/frame_rate_conform_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/frame_rate_conform_plan.json",
+                    "work/frame_rate_conform_plan.md",
+                    source,
+                ],
+                gate_category="frame_rate_conform_plan",
+            ),
+        )
+        notes.append(
+            "Review the decoded cadence report, run frame_rate_conform.py apply/verify, then use "
+            "work/source-cfr.mp4 for transcription, cuts, captions, sync, and rendering. Choose 30/60 fps "
+            "from the intended motion and platform when the brief does not specify a rate."
+        )
+
+    if "black_edge_trim" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "black_edge_trim_plan",
+                phase="ingest",
+                script="black_edge_trim.py",
+                label="Trim silent leading/trailing black and bind exact edge proofs",
+                reason="The brief asks to remove black frames or black slugs at the start/end of the source.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/black_edge_trim.py",
+                        "plan",
+                        pre_black_trim_source,
+                        "--delivery",
+                        "work/source-edge-trimmed.mp4",
+                        "--edge-proof",
+                        "verify/source-edge-trim-proof.mp4",
+                        "--audio-policy",
+                        "silent_only",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/black_edge_trim_plan.json",
+                        "--markdown",
+                        "work/black_edge_trim_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/black_edge_trim_plan.json",
+                    "work/black_edge_trim_plan.md",
+                    "work/source-edge-trimmed.mp4",
+                    "verify/source-edge-trim-proof.mp4",
+                ],
+                gate_category="black_edge_trim_plan",
+            ),
+        )
+        notes.append(
+            "black_edge_trim.py only considers black ranges touching the source head/tail. The default silent_only policy also requires audio silence coverage. "
+            "Run apply, watch the proof and complete delivery at 1x, confirm content/audio continuity, then live-verify the plan."
+        )
+
+    if "loop_fill" in ids:
+        loop_kind, loop_value = infer_loop_target(normalized)
+        target_flag = "--times" if loop_kind == "times" else "--duration"
+        target_value = loop_value or ("<repeat_count>" if loop_kind == "times" else "<target_duration>")
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "loop_fill_plan",
+                phase="ingest",
+                script="loop_fill.py",
+                label="Fill a fixed slot with a repeated clip and bind the real seam proof",
+                reason="The brief asks to repeat a short video or background until a count or target duration is reached.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/loop_fill.py",
+                        "plan",
+                        source,
+                        target_flag,
+                        target_value,
+                        "--audio-mode",
+                        "preserve",
+                        "--delivery",
+                        "work/source-loop-fill.mp4",
+                        "--seam-proof",
+                        "verify/source-loop-seam.mp4",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/loop_fill_plan.json",
+                        "--markdown",
+                        "work/loop_fill_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/loop_fill_plan.json",
+                    "work/loop_fill_plan.md",
+                    "work/source-loop-fill.mp4",
+                    "verify/source-loop-seam.mp4",
+                ],
+                gate_category="loop_fill_plan",
+            ),
+        )
+        notes.append(
+            "loop_fill.py performs a hard source repeat and never labels arbitrary endpoints seamless. "
+            "Run apply, watch the seam proof and full delivery at 1x, record every confirm check, then live-verify the plan. "
+            "Use --audio-mode drop for decorative background video whose source audio must not repeat."
+        )
+
+    if "ping_pong_loop" in ids:
+        loop_kind, loop_value = infer_loop_target(normalized)
+        target_flag = "--cycles" if loop_kind == "times" else "--duration"
+        target_value = loop_value or ("<cycle_count>" if loop_kind == "times" else "<target_duration>")
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "ping_pong_loop_plan",
+                phase="edit",
+                script="ping_pong_loop.py",
+                label="Build an endpoint-deduplicated forward/reverse loop",
+                reason="The brief asks for a boomerang or ping-pong motion effect rather than a hard source repeat.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/ping_pong_loop.py",
+                        "plan",
+                        source,
+                        "--start",
+                        "<gesture_start_seconds>",
+                        "--end",
+                        "<gesture_end_seconds>",
+                        target_flag,
+                        target_value,
+                        "--delivery",
+                        "work/source-ping-pong.mp4",
+                        "--turnaround-proof",
+                        "verify/source-ping-pong-turnaround.mp4",
+                        "--loop-seam-proof",
+                        "verify/source-ping-pong-loop-seam.mp4",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/ping_pong_loop_plan.json",
+                        "--markdown",
+                        "work/ping_pong_loop_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/ping_pong_loop_plan.json",
+                    "work/ping_pong_loop_plan.md",
+                    "work/source-ping-pong.mp4",
+                    "verify/source-ping-pong-turnaround.mp4",
+                    "verify/source-ping-pong-loop-seam.mp4",
+                ],
+                gate_category="ping_pong_loop_plan",
+            ),
+        )
+        notes.append(
+            "Choose a short gesture range before rendering: FFmpeg reverse buffers decoded frames, so the planner enforces an explicit memory estimate. "
+            "Source audio is dropped. Run apply, watch both boundary proofs and the complete delivery at 1x, then confirm and live-verify the plan."
+        )
+
+    if "clip_assembly" in ids:
+        assembly_sources = [source_input, "<next_clip>"] if source_media else ["<clip_1>", "<clip_2>"]
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "clip_assembly_plan",
+                phase="edit",
+                script="clip_assembly.py",
+                label="Normalize and assemble ordered clips with an all-boundary proof",
+                reason="The brief asks to combine multiple video files whose geometry, cadence, timestamps, or audio layout may differ.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/clip_assembly.py",
+                        "plan",
+                        *assembly_sources,
+                        "--delivery",
+                        "output/assembled.mp4",
+                        "--boundary-proof",
+                        "verify/clip-assembly-boundaries.mp4",
+                        "--fit",
+                        "contain",
+                        "--audio-mode",
+                        "fill-silence",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/clip_assembly_plan.json",
+                        "--markdown",
+                        "work/clip_assembly_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/clip_assembly_plan.json",
+                    "work/clip_assembly_plan.md",
+                    "output/assembled.mp4",
+                    "verify/clip-assembly-boundaries.mp4",
+                ],
+                gate_category="clip_assembly_plan",
+            ),
+        )
+        notes.append(
+            "List every unique clip in final playback order. The tool normalizes all streams in one encode and never falls back to unchecked stream copy. "
+            "Run apply, watch the complete delivery and every boundary-proof window at 1x, confirm all checks, then live-verify the plan."
+        )
+
+    if "production_authorization" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "production_authorization",
+                phase="ingest",
+                script="production_authorization.py",
+                label="Bind explicit production scope and permissions before acting",
+                reason="The brief mentions external upload, invasive editorial changes, paid generation, voice cloning, publishing, or real-person/brand/IP permission.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/production_authorization.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--scope",
+                        "work/production_authorization_scope.json",
+                        "--output",
+                        "work/production_authorization_request.json",
+                        "--markdown",
+                        "work/production_authorization_request.md",
+                        "--response-template",
+                        "work/production_authorization_response.json",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/production_authorization_request.json",
+                    "work/production_authorization_response.json",
+                    "work/production_authorization.json",
+                ],
+                gate_category="production_authorization",
+            ),
+        )
+        notes.append(
+            "Write production_authorization_scope.json with exact assets/actions/providers/purposes/cost notes and rights subjects first. "
+            "After explicit decisions, run production_authorization.py audit and verify; labels and notes are self-attested, not legal proof."
+        )
+
+    if needs_transcript:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "transcript",
+                phase="analysis",
+                script="transcribe.py",
+                label="Transcribe source media with word timestamps",
+                reason="Downstream script, subtitle, highlight, hook, or publish steps need timed speech.",
+                command=shell([python_bin, "scripts/transcribe.py", source, "--word-timestamps", "--detect-fillers"]),
+                outputs=[transcript_path],
+                gate_category="transcript",
+            ),
+        )
+
+    if "semantic_review" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "semantic_transcript_review",
+                phase="review",
+                script="semantic_transcript_review.py",
+                label="Prepare a source-bound context review packet",
+                reason="The brief asks to check ASR wording or terminology with whole-transcript context.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/semantic_transcript_review.py",
+                        "prepare",
+                        "--transcript",
+                        transcript_path,
+                        "--output",
+                        "work/semantic_review_request.json",
+                        "--markdown",
+                        "work/semantic_review_request.md",
+                    ]
+                ),
+                outputs=["work/semantic_review_request.json", "work/semantic_review_request.md"],
+                gate_category="semantic_transcript_review",
+            ),
+        )
+
+    if "multi_take" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "takes_pack",
+                phase="analysis",
+                script="takes_pack.py",
+                label="Pack multiple takes into a phrase-level reading view",
+                reason="The brief asks to compare or select across multiple takes.",
+                command=shell([python_bin, "scripts/takes_pack.py", "--transcripts-dir", "work/takes", "--output", "work/takes_packed.md", "--json", "work/takes_pack.json"]),
+                outputs=["work/takes_pack.json", "work/takes_packed.md"],
+                gate_category="takes_pack",
+                required=False,
+            ),
+        )
+
+    if "target_script" in ids:
+        alignment_inputs = (
+            ["--transcripts-dir", "work/takes"]
+            if "multi_take" in ids
+            else ["--transcript", f"main={transcript_path}", "--media", f"main={source}"]
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "script_alignment",
+                phase="edit",
+                script="script_alignment.py",
+                label="Align the reviewed target script to source speech",
+                reason="The brief asks to assemble original spoken ranges in target-script order.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/script_alignment.py",
+                        "--target-script",
+                        "<target_script.md>",
+                        *alignment_inputs,
+                        "--output",
+                        "work/script_alignment.json",
+                        "--markdown",
+                        "work/script_alignment.md",
+                        "--render-config",
+                        "work/render_config.json",
+                        "--clean-script",
+                        "work/clean_script.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/script_alignment.json",
+                    "work/script_alignment.md",
+                    "work/render_config.json",
+                    "work/clean_script.md",
+                ],
+                gate_category="script_alignment",
+            ),
+        )
+
+    if "long_to_short" in ids or "batch_shorts" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "highlight_candidates",
+                phase="analysis",
+                script="highlight_picker.py",
+                label="Pick short-form highlight candidates",
+                reason="The brief asks to cut a long recording into one or more short clips.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/highlight_picker.py",
+                        "--transcript",
+                        transcript_path,
+                        "--video",
+                        source,
+                        "--output",
+                        "work/highlight_candidates.json",
+                        "--markdown",
+                        "work/highlight_candidates.md",
+                        "--platform",
+                        primary_platform,
+                        "--num-clips",
+                        "5",
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/highlight_candidates.json", "work/highlight_candidates.md"],
+                gate_category="highlight_candidates",
+            ),
+        )
+
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_boundary_plan",
+                phase="analysis",
+                script="audio_boundary_snap.py",
+                label="Snap selected highlights to safe audio boundaries",
+                reason="Word, sentence, and silence alignment prevents mid-word or mid-thought short-video cuts.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/audio_boundary_snap.py",
+                        "--candidates",
+                        "work/highlight_candidates.json",
+                        "--transcript",
+                        transcript_path,
+                        "--media",
+                        source,
+                        "--output",
+                        "work/audio_boundary_plan.json",
+                        "--markdown",
+                        "work/audio_boundary_plan.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/audio_boundary_plan.json", "work/audio_boundary_plan.md"],
+                gate_category="audio_boundary_plan",
+            ),
+        )
+
+    if "batch_shorts" in ids or ("long_to_short" in ids and "publish" in ids):
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "shorts_batch",
+                phase="plan",
+                script="shorts_batch.py",
+                label="Turn selected highlights into render jobs",
+                reason="The brief asks for multiple shorts or a repeatable short-clip queue.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/shorts_batch.py",
+                        "--highlights",
+                        "work/audio_boundary_plan.json",
+                        "--video",
+                        source,
+                        "--output",
+                        "work/shorts_batch.json",
+                        "--markdown",
+                        "work/shorts_batch.md",
+                        "--render-config-dir",
+                        "work/shorts_render_configs",
+                        "--output-dir",
+                        "output/shorts",
+                        "--qa-dir",
+                        "verify/shorts",
+                        "--basename",
+                        "short",
+                        "--platform",
+                        primary_platform,
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/shorts_batch.json", "work/shorts_batch.md"],
+                gate_category="shorts_batch",
+            ),
+        )
+
+    if "hook" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "hook_variants",
+                phase="plan",
+                script="hook_variants.py",
+                label="Generate opening hook variants",
+                reason="The brief calls out the first seconds or opening angle.",
+                command=shell([python_bin, "scripts/hook_variants.py", "--transcript", transcript_path, "--platform", primary_platform, "--output", "work/hook_variants.json", "--markdown", "work/hook_variants.md", "--strict"]),
+                outputs=["work/hook_variants.json", "work/hook_variants.md"],
+                gate_category="hook_variants",
+                required=False,
+            ),
+        )
+
+    if "cleanup_words" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "rough_cut",
+                phase="edit",
+                script="rough_cut.py",
+                label="Create filler/repetition rough-cut list",
+                reason="The brief asks to remove fillers, stutters, or repeated speech.",
+                command=shell([python_bin, "scripts/rough_cut.py", "--transcript", transcript_path, "--cut-list", "work/rough_cut.json"]),
+                outputs=["work/rough_cut.json"],
+                gate_category="rough_cut",
+            ),
+        )
+
+    if "multimodal_dead_air" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "multimodal_dead_air_plan",
+                phase="edit",
+                script="multimodal_dead_air.py",
+                label="Plan conservative silence + freeze dead-air cuts",
+                reason="The brief asks to remove only intervals that are both silent and visually static.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/multimodal_dead_air.py",
+                        "plan",
+                        source,
+                        "--delivery",
+                        "work/dead-air-tight.mp4",
+                        "--output",
+                        "work/multimodal_dead_air_plan.json",
+                        "--markdown",
+                        "work/multimodal_dead_air_plan.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/multimodal_dead_air_plan.json", "work/multimodal_dead_air_plan.md"],
+                gate_category="multimodal_dead_air_plan",
+            ),
+        )
+        notes.append(
+            "Review every multimodal dead-air cut with timeline_view.py, then run "
+            "multimodal_dead_air.py apply and use the validated working copy downstream."
+        )
+
+    if "cleanup_silence" in ids and "multimodal_dead_air" not in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "jump_cut",
+                phase="edit",
+                script="jump_cut.py",
+                label="Detect silence gaps and plan jump cuts",
+                reason="The brief asks to remove silence or tighten pacing.",
+                command=shell([python_bin, "scripts/jump_cut.py", source, "--dry-run", "--cut-list", "work/jump_cut.json"]),
+                outputs=["work/jump_cut.json"],
+                gate_category="rough_cut",
+            ),
+        )
+
+    if wants_clean_script:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "clean_script",
+                phase="plan",
+                script="rewrite_script.py",
+                label="Emit a clean-script prompt, then validate the reviewed LLM JSON",
+                reason="The brief needs story structure, safer wording, source-aware copy, or publish captions.",
+                command=shell([python_bin, "scripts/rewrite_script.py", "--transcript", transcript_path, "--structure", "pain_solve", "--emit-prompt"]),
+                outputs=[clean_script],
+                gate_category="clean_script",
+            ),
+        )
+
+    if "source_receipts" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "source_receipts",
+                phase="review",
+                script="source_receipts.py",
+                label="Build a proof deck for factual claims",
+                reason="The brief mentions facts, data, news, sources, or proof.",
+                command=shell([python_bin, "scripts/source_receipts.py", "--claims", "work/source_claims.json", "--output", "work/source_receipts.json", "--markdown", "work/source_receipts.md", "--html", "work/source_receipts.html", "--strict"]),
+                outputs=["work/source_receipts.json", "work/source_receipts.md", "work/source_receipts.html"],
+                gate_category="source_receipts",
+            ),
+        )
+
+    if "content_guard" in ids or "publish" in ids or any(p in {"xhs", "douyin", "wxch"} for p in platforms):
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "content_guard",
+                phase="review",
+                script="content_guard.py",
+                label="Lint platform-sensitive wording before render/publish",
+                reason="The brief targets short-form platforms or explicitly asks for risk checks.",
+                command=shell([python_bin, "scripts/content_guard.py", "--script", clean_script, "--strict"]),
+                outputs=["terminal report"],
+                gate_category="content_guard",
+                required=False,
+            ),
+        )
+
+    if "audio_sync" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_sync",
+                phase="analysis",
+                script="audio_sync.py",
+                label="Align external recorder audio to camera scratch audio",
+                reason="The brief mentions external audio, lav mic, recorder, or sync.",
+                command=shell([python_bin, "scripts/audio_sync.py", "--reference-media", source, "--external-audio", "<external_audio>", "--output", "work/audio_sync_plan.json", "--markdown", "work/audio_sync_plan.md", "--strict"]),
+                outputs=["work/audio_sync_plan.json", "work/audio_sync_plan.md"],
+                gate_category="audio_sync",
+            ),
+        )
+
+    if "multicam_switch" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "multicam_switch_plan",
+                phase="edit",
+                script="multicam_switch.py",
+                label="Build a source-bound audio-guided multicam draft",
+                reason="The brief asks to switch synchronized cameras according to the current speaker.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/multicam_switch.py",
+                        "plan",
+                        "--sync-plan",
+                        "work/multicam_sync_plan.json",
+                        "--speaker",
+                        "<angle_id>=<speaker>",
+                        "--speaker",
+                        "<angle_id>=<speaker>",
+                        "--delivery",
+                        "output/multicam_switch_draft.mp4",
+                        "--output",
+                        "work/multicam_switch_plan.json",
+                        "--markdown",
+                        "work/multicam_switch_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/multicam_switch_plan.json",
+                    "work/multicam_switch_plan.md",
+                    "output/multicam_switch_draft.mp4",
+                ],
+                gate_category="multicam_switch_plan",
+            ),
+        )
+        notes.append(
+            "First live-review multicam_sync_plan.json and map only video angles whose selected audio is a meaningful speaker proxy. "
+            "Then apply the switch plan, watch the complete draft at 1x with sound, and confirm speaker selection, cut timing, sync, and audio continuity."
+        )
+
+    if "broll" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "stock_material_plan",
+                phase="assets",
+                script="stock_material_plan.py",
+                label="Plan stock/B-roll search terms and local registration",
+                reason="The brief asks for B-roll, replacement visuals, or stock footage.",
+                command=shell([python_bin, "scripts/stock_material_plan.py", "--subject", "<topic>", "--script", clean_script, "--output", "work/stock_material_plan.json", "--markdown", "work/stock_material_plan.md"]),
+                outputs=["work/stock_material_plan.json", "work/stock_material_plan.md"],
+                gate_category="asset_provenance",
+                required=False,
+            ),
+        )
+
+    if "generation_lessons" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "generation_lessons",
+                phase="assets",
+                script="generation_lessons.py",
+                label="Verify the approved generated-video lesson library",
+                reason="The brief asks to reuse or maintain prompt lessons distilled from source-bound clip reviews.",
+                command=shell([python_bin, "scripts/generation_lessons.py", "verify", "--library", "work/generation_lessons.json", "--strict"]),
+                outputs=["work/generation_lessons.json"],
+                gate_category="generation_lessons",
+                required=False,
+            ),
+        )
+
+    if "provider_capabilities" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "provider_capabilities",
+                phase="assets",
+                script="provider_capability.py",
+                label="Verify dated capabilities for the exact generation surface",
+                reason="The brief asks to verify provider/UI/API modes, limits, or controls before generation.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/provider_capability.py",
+                        "verify",
+                        "--bundle",
+                        "work/provider_capabilities.json",
+                        "--max-age-days",
+                        "30",
+                        "--output",
+                        "work/provider_capabilities_verification.json",
+                        "--markdown",
+                        "work/provider_capabilities_verification.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/provider_capabilities.json",
+                    "work/provider_capabilities_verification.json",
+                    "work/provider_capabilities_verification.md",
+                ],
+                gate_category="provider_capabilities",
+            ),
+        )
+
+    if "sequence_handoff" in ids and "generated_assets" not in ids:
+        notes.append(IMAGEGEN_ROUTING)
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "storyboard_plan",
+                phase="assets",
+                script="storyboard_plan.py",
+                label="Plan the shot sequence before designing adjacent boundaries",
+                reason="A sequence handoff matrix needs ordered storyboard shots and explicit first/motion/last-frame intent.",
+                command=shell([python_bin, "scripts/storyboard_plan.py", "--transcript", transcript_path, "--clean-script", clean_script, "--output", "work/storyboard_plan.json", "--markdown", "work/storyboard_plan.md"]),
+                outputs=["work/storyboard_plan.json", "work/storyboard_plan.md"],
+                gate_category="storyboard_plan",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "sequence_handoff",
+                phase="assets",
+                script="sequence_handoff.py",
+                label="Design and review every adjacent shot handoff",
+                reason="The brief asks for a shot-to-shot handoff or edit-boundary matrix before generation.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/sequence_handoff.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--storyboard",
+                        "work/storyboard_plan.json",
+                        "--output",
+                        "work/sequence_handoff_request.json",
+                        "--markdown",
+                        "work/sequence_handoff_request.md",
+                        "--response-template",
+                        "work/sequence_handoff_response.json",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/sequence_handoff_request.json",
+                    "work/sequence_handoff_response.json",
+                    "work/sequence_handoff.json",
+                ],
+                gate_category="sequence_handoff",
+            ),
+        )
+        notes.append(
+            "Review every proposed carrier, receive-in, edit type, 180-degree axis, screen direction, audio bridge, "
+            "edit handle, risk, and fallback; then run sequence_handoff.py audit and verify."
+        )
+
+    if "storyboard_animatic" in ids and "generated_assets" not in ids:
+        notes.append(IMAGEGEN_ROUTING)
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "storyboard_plan",
+                phase="assets",
+                script="storyboard_plan.py",
+                label="Plan ordered storyboard shots before animatic assembly",
+                reason="A timed animatic requires an ordered storyboard with explicit shot starts and ends.",
+                command=shell([python_bin, "scripts/storyboard_plan.py", "--transcript", transcript_path, "--clean-script", clean_script, "--output", "work/storyboard_plan.json", "--markdown", "work/storyboard_plan.md"]),
+                outputs=["work/storyboard_plan.json", "work/storyboard_plan.md"],
+                gate_category="storyboard_plan",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "storyboard_animatic",
+                phase="assets",
+                script="storyboard_animatic.py",
+                label="Render and review the timed storyboard animatic",
+                reason="Still panels need a complete normal-speed timing and continuity preview before paid generation or final editing.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/storyboard_animatic.py",
+                        "plan",
+                        "--project-dir",
+                        project_dir,
+                        "--storyboard",
+                        "work/storyboard_plan.json",
+                        "--panel",
+                        "<repeat_SHOT_ID=PATH>",
+                        "--delivery",
+                        "verify/storyboard_animatic.mp4",
+                        "--output",
+                        "work/storyboard_animatic.json",
+                        "--markdown",
+                        "work/storyboard_animatic.md",
+                    ]
+                ),
+                outputs=[
+                    "work/storyboard_animatic.json",
+                    "work/storyboard_animatic.md",
+                    "verify/storyboard_animatic.mp4",
+                ],
+                gate_category="storyboard_animatic",
+            ),
+        )
+        notes.append(
+            "Repeat --panel SHOT_ID=PATH for every shot, then run storyboard_animatic.py apply. "
+            "Watch the complete MP4 at 1x, confirm all five review fields, and live-verify before generation."
+        )
+
+    if "generated_assets" in ids:
+        notes.append(IMAGEGEN_ROUTING)
+        prompt_pack_command = [
+            python_bin,
+            "scripts/video_prompt_pack.py",
+            "--storyboard-plan",
+            "work/storyboard_plan.json",
+            "--provider",
+            "dreamina_seedance",
+            "--output",
+            "work/video_prompt_pack.json",
+            "--markdown",
+            "work/video_prompt_pack.md",
+            "--strict",
+        ]
+        if "generation_references" in ids:
+            prompt_pack_command.extend(["--mode", "reference_to_video"])
+        if "generation_lessons" in ids:
+            prompt_pack_command.extend(["--lesson-library", "work/generation_lessons.json"])
+        if "provider_capabilities" in ids:
+            prompt_pack_command.extend(
+                [
+                    "--capability-profile",
+                    "work/provider_capabilities.json",
+                    "--require-capability-profile",
+                    "--resolution",
+                    "<verified_resolution>",
+                ]
+            )
+            notes.append(
+                "Provider capability profiles are surface-specific and expire after 30 days; refresh the named UI/API evidence instead of carrying limits across providers."
+            )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "storyboard_plan",
+                phase="assets",
+                script="storyboard_plan.py",
+                label="Plan generated image/video shots before submitting providers",
+                reason="The brief mentions image generation, Dreamina/即梦, or generated video.",
+                command=shell([python_bin, "scripts/storyboard_plan.py", "--transcript", transcript_path, "--clean-script", clean_script, "--output", "work/storyboard_plan.json", "--markdown", "work/storyboard_plan.md"]),
+                outputs=["work/storyboard_plan.json", "work/storyboard_plan.md"],
+                gate_category="storyboard_plan",
+            ),
+        )
+        if ids.intersection({"sequence_handoff", "sequence_continuity"}):
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "sequence_handoff",
+                    phase="assets",
+                    script="sequence_handoff.py",
+                    label="Design and review every adjacent shot handoff",
+                    reason="Multi-shot generation needs an explicit receive-in, handoff-out, and edit-boundary contract before final prompts.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/sequence_handoff.py",
+                            "prepare",
+                            "--project-dir",
+                            project_dir,
+                            "--storyboard",
+                            "work/storyboard_plan.json",
+                            "--output",
+                            "work/sequence_handoff_request.json",
+                            "--markdown",
+                            "work/sequence_handoff_request.md",
+                            "--response-template",
+                            "work/sequence_handoff_response.json",
+                            "--strict",
+                        ]
+                    ),
+                    outputs=[
+                        "work/sequence_handoff_request.json",
+                        "work/sequence_handoff_response.json",
+                        "work/sequence_handoff.json",
+                    ],
+                    gate_category="sequence_handoff",
+                ),
+            )
+            prompt_pack_command.extend(
+                [
+                    "--project-dir",
+                    project_dir,
+                    "--sequence-handoff",
+                    "work/sequence_handoff.json",
+                ]
+            )
+            notes.append(
+                "Fill and audit sequence_handoff_response.json before video_prompt_pack.py; the live-verified report writes "
+                "receive-in, handoff-out, edit type, axis, direction, audio, and edit-handle instructions into each prompt."
+            )
+        if "reference_story_formula" in ids:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "reference_story_formula",
+                    phase="assets",
+                    script="reference_story_formula.py",
+                    label="Extract and review a transferable story formula from the reference",
+                    reason="The brief asks to preserve the reference's emotional or narrative mechanism while replacing its expression and subject matter.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/reference_story_formula.py",
+                            "prepare",
+                            "--project-dir",
+                            project_dir,
+                            "--reference-video",
+                            "<reference_video>",
+                            "--reference-transcript",
+                            "<reference_transcript.json>",
+                            "--target-storyboard",
+                            "work/storyboard_plan.json",
+                            "--output",
+                            "work/reference_story_formula_request.json",
+                            "--markdown",
+                            "work/reference_story_formula_request.md",
+                            "--response-template",
+                            "work/reference_story_formula_response.json",
+                            "--strict",
+                        ]
+                    ),
+                    outputs=[
+                        "work/reference_story_formula_request.json",
+                        "work/reference_story_formula_response.json",
+                        "work/reference_story_formula.json",
+                    ],
+                    gate_category="reference_story_formula",
+                ),
+            )
+            if "--project-dir" not in prompt_pack_command:
+                prompt_pack_command.extend(["--project-dir", project_dir])
+            prompt_pack_command.extend(
+                [
+                    "--reference-story-formula",
+                    "work/reference_story_formula.json",
+                ]
+            )
+            notes.append(
+                "Fill every timecoded beat and target-shot mapping, confirm the copy-exclusion policy, then run "
+                "reference_story_formula.py audit and verify. Provider prompts inherit only the reviewed mechanism and target-specific content anchors."
+            )
+        if "storyboard_animatic" in ids:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "storyboard_animatic",
+                    phase="assets",
+                    script="storyboard_animatic.py",
+                    label="Render and review the timed storyboard animatic",
+                    reason="Still panels need a complete normal-speed timing and continuity preview before provider submission.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/storyboard_animatic.py",
+                            "plan",
+                            "--project-dir",
+                            project_dir,
+                            "--storyboard",
+                            "work/storyboard_plan.json",
+                            "--panel",
+                            "<repeat_SHOT_ID=PATH>",
+                            "--delivery",
+                            "verify/storyboard_animatic.mp4",
+                            "--output",
+                            "work/storyboard_animatic.json",
+                            "--markdown",
+                            "work/storyboard_animatic.md",
+                        ]
+                    ),
+                    outputs=[
+                        "work/storyboard_animatic.json",
+                        "work/storyboard_animatic.md",
+                        "verify/storyboard_animatic.mp4",
+                    ],
+                    gate_category="storyboard_animatic",
+                ),
+            )
+            notes.append(
+                "Repeat --panel SHOT_ID=PATH for every shot, apply the animatic, watch it completely at 1x, "
+                "and confirm all review fields before submitting provider jobs."
+            )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "video_prompt_pack",
+                phase="assets",
+                script="video_prompt_pack.py",
+                label="Create provider prompt pack and paid-generation approval gate",
+                reason="Generated video providers need prompts, continuity anchors, and approval before credits are spent.",
+                command=shell(prompt_pack_command),
+                outputs=["work/video_prompt_pack.json", "work/video_prompt_pack.md"],
+                gate_category="video_prompt_pack",
+            ),
+        )
+
+        if "generation_references" in ids:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "generation_reference_template",
+                    phase="assets",
+                    script="generation_reference_preflight.py",
+                    label="Create the shot-indexed multimodal reference manifest",
+                    reason="Every submitted image, video, and audio reference needs a stable order plus one narrow role and explicit exclusions.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/generation_reference_preflight.py",
+                            "template",
+                            "--project-dir",
+                            project_dir,
+                            "--prompt-pack",
+                            "work/video_prompt_pack.json",
+                            "--output",
+                            "work/generation_references.json",
+                        ]
+                    ),
+                    outputs=["work/generation_references.json"],
+                    gate_category="generation_reference_preflight",
+                ),
+            )
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "generation_reference_preflight",
+                    phase="assets",
+                    script="generation_reference_preflight.py",
+                    label="Decode and verify multimodal generation references",
+                    reason="Provider submission needs live checks for media type, count, bytes, duration, mode exclusivity, and @Image/@Video/@Audio role binding.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/generation_reference_preflight.py",
+                            "analyze",
+                            "--project-dir",
+                            project_dir,
+                            "--prompt-pack",
+                            "work/video_prompt_pack.json",
+                            "--references",
+                            "work/generation_references.json",
+                            "--capability-profile",
+                            "work/provider_capabilities.json",
+                            "--output",
+                            "work/generation_reference_preflight.json",
+                            "--markdown",
+                            "work/generation_reference_preflight.md",
+                            "--strict",
+                        ]
+                    ),
+                    outputs=[
+                        "work/generation_reference_preflight.json",
+                        "work/generation_reference_preflight.md",
+                    ],
+                    gate_category="generation_reference_preflight",
+                ),
+            )
+            notes.append(
+                "Fill generation_references.json with the exact local files in provider order. Every row needs kind, path, one narrow role, and explicit excluded properties. Submit with the bound provider_prompt from the ready preflight report."
+            )
+
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "storyboard_assets",
+                phase="assets",
+                script="storyboard_assets.py",
+                label="Refresh generated asset readiness after provider downloads",
+                reason="Generated clips must exist locally before visual review and final assembly.",
+                command=shell([python_bin, "scripts/storyboard_assets.py", "--storyboard-plan", "work/storyboard_plan.json", "--asset-root", "work", "--output", "work/storyboard_assets.json", "--markdown", "work/storyboard_assets.md", "--strict"]),
+                outputs=["work/storyboard_assets.json", "work/storyboard_assets.md"],
+                gate_category="storyboard_assets",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "generated_clip_review",
+                phase="review",
+                script="generated_clip_review.py",
+                label="Review generated clips for physics, identity, continuity, and usable ranges",
+                reason="Downloaded generated video is raw material until source-bound visual review passes.",
+                command=shell([python_bin, "scripts/generated_clip_review.py", "prepare", "--project-dir", project_dir, "--asset-manifest", "work/storyboard_assets.json", "--contact-sheet-dir", "verify/generated_clips", "--output", "work/generated_clip_review_request.json", "--markdown", "work/generated_clip_review_request.md", "--response-template", "work/generated_clip_review_response.json"]),
+                outputs=[
+                    "work/generated_clip_review_request.json",
+                    "work/generated_clip_review_response.json",
+                    "work/generated_clip_review.json",
+                ],
+                gate_category="generated_clip_review",
+            ),
+        )
+        if "generation_chain_handoff" in ids:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "generation_chain_handoff",
+                    phase="review",
+                    script="generation_chain_handoff.py",
+                    label="Bind an approved predecessor tail to the next generated shot",
+                    reason="A genuinely continuous generated boundary must use the reviewed predecessor pixels instead of restarting from a planned keyframe.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/generation_chain_handoff.py",
+                            "prepare",
+                            "--project-dir",
+                            project_dir,
+                            "--clip-review",
+                            "work/generated_clip_review.json",
+                            "--sequence-handoff",
+                            "work/sequence_handoff.json",
+                            "--boundary",
+                            "<boundary_id>",
+                            "--frame-output",
+                            "work/generation_chain/<boundary_id>_tail.png",
+                            "--output",
+                            "work/generation_chain_handoff.plan.json",
+                            "--markdown",
+                            "work/generation_chain_handoff.plan.md",
+                        ]
+                    ),
+                    outputs=[
+                        "work/generation_chain/<boundary_id>_tail.png",
+                        "work/generation_chain_handoff.plan.json",
+                        "work/generation_chain_handoff.json",
+                    ],
+                    gate_category="generation_chain_handoff",
+                ),
+            )
+            chained_prompt_command = list(prompt_pack_command)
+            output_index = chained_prompt_command.index("--output") + 1
+            chained_prompt_command[output_index] = "work/video_prompt_pack.chained.json"
+            markdown_index = chained_prompt_command.index("--markdown") + 1
+            chained_prompt_command[markdown_index] = "work/video_prompt_pack.chained.md"
+            chained_prompt_command.extend(
+                [
+                    "--generation-chain-handoff",
+                    "work/generation_chain_handoff.json",
+                ]
+            )
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "video_prompt_pack_chained",
+                    phase="review",
+                    script="video_prompt_pack.py",
+                    label="Rebuild the next-shot prompt with the approved exact first frame",
+                    reason="The next provider request must be rebound to the reviewed tail-frame artifact immediately before sequential submission.",
+                    command=shell(chained_prompt_command),
+                    outputs=[
+                        "work/video_prompt_pack.chained.json",
+                        "work/video_prompt_pack.chained.md",
+                    ],
+                    gate_category="video_prompt_pack",
+                ),
+            )
+            notes.append(
+                "Run generation_chain_handoff.py once per genuinely continuous boundary. View the PNG, confirm same-scene continuity, tail suitability, and original identity/product/style anchors; then rebuild the prompt pack and submit the next shot sequentially."
+            )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "generated_motion_window",
+                phase="review",
+                script="generated_motion_window.py",
+                label="Detect and approve active motion windows for generated clips",
+                reason="Sparse contact sheets can miss frozen lead-ins; each accepted generated clip needs temporal motion evidence before assembly.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/generated_motion_window.py",
+                        "analyze",
+                        "<generated_clip.mp4>",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/generated_motion_window/<clip_id>.json",
+                        "--markdown",
+                        "work/generated_motion_window/<clip_id>.md",
+                    ]
+                ),
+                outputs=[
+                    "work/generated_motion_window/<clip_id>.json",
+                    "work/generated_motion_window/<clip_id>.md",
+                    "work/generated_motion_window/<clip_id>-active.mp4",
+                ],
+                gate_category="generated_motion_window",
+            ),
+        )
+        if "sequence_continuity" in ids:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "generated_sequence_review",
+                    phase="review",
+                    script="generated_sequence_review.py",
+                    label="Review adjacent generated clips as one visual sequence",
+                    reason="The brief asks to verify identity, prop, spatial, action, camera, and look continuity across generated shots.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/generated_sequence_review.py",
+                            "prepare",
+                            "--project-dir",
+                            project_dir,
+                            "--clip-review",
+                            "work/generated_clip_review.json",
+                            "--storyboard-plan",
+                            "work/storyboard_plan.json",
+                            "--evidence-dir",
+                            "verify/generated_sequence",
+                            "--output",
+                            "work/generated_sequence_review_request.json",
+                            "--markdown",
+                            "work/generated_sequence_review_request.md",
+                            "--response-template",
+                            "work/generated_sequence_review_response.json",
+                        ]
+                    ),
+                    outputs=[
+                        "work/generated_sequence_review_request.json",
+                        "work/generated_sequence_review_response.json",
+                        "work/generated_sequence_review.json",
+                    ],
+                    gate_category="generated_sequence_review",
+                ),
+            )
+
+    if "generated_motion_window" in ids and "generated_assets" not in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "generated_motion_window",
+                phase="review",
+                script="generated_motion_window.py",
+                label="Detect and approve the clip's active motion window",
+                reason="The brief identifies a frozen lead-in, delayed motion, or asks to trim a generated clip to active frames.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/generated_motion_window.py",
+                        "analyze",
+                        source,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "work/generated_motion_window.json",
+                        "--markdown",
+                        "work/generated_motion_window.md",
+                    ]
+                ),
+                outputs=[
+                    "work/generated_motion_window.json",
+                    "work/generated_motion_window.md",
+                    "work/generated-active.mp4",
+                ],
+                gate_category="generated_motion_window",
+            ),
+        )
+        notes.append(
+            "Play the complete source at 1x before confirm; freezedetect only measures full-frame similarity and cannot decide whether stillness is intentional or motion is meaningful."
+        )
+
+    if "audio_design" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_cue_sheet",
+                phase="assets",
+                script="audio_cue_sheet.py",
+                label="Plan BGM/SFX cues and local audio blockers",
+                reason="The brief asks for music, SFX, or sound design.",
+                command=shell([python_bin, "scripts/audio_cue_sheet.py", "--transcript", transcript_path, "--asset-root", "assets/audio", "--output", "work/audio_cue_sheet.json", "--markdown", "work/audio_cue_sheet.md", "--strict"]),
+                outputs=["work/audio_cue_sheet.json", "work/audio_cue_sheet.md"],
+                gate_category="audio_cue_sheet",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_cue_mix",
+                phase="assets",
+                script="audio_cue_mix.py",
+                label="Render and review one source-bound narration + SFX master",
+                reason="The cue sheet must become a timed, decoded audio artifact before final music mixing.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/audio_cue_mix.py",
+                        "plan",
+                        "--cue-sheet",
+                        "work/audio_cue_sheet.json",
+                        "--voice",
+                        "<final_narration_audio>",
+                        "--delivery",
+                        "work/audio_cue_mix.wav",
+                        "--project-dir",
+                        project_dir,
+                        "--synthesize-missing",
+                        "--output",
+                        "work/audio_cue_mix.json",
+                        "--markdown",
+                        "work/audio_cue_mix.md",
+                    ]
+                ),
+                outputs=[
+                    "work/audio_cue_mix.json",
+                    "work/audio_cue_mix.md",
+                    "work/audio_cue_mix.wav",
+                ],
+                gate_category="audio_cue_mix",
+            ),
+        )
+        notes.append(
+            "Replace <final_narration_audio> with the finalized project-local voice/dialogue track. "
+            "After plan, run audio_cue_mix.py apply, listen to the complete mix at 1x, confirm all five "
+            "review fields, and verify. BGM remains in render_final.py with narration-driven ducking."
+        )
+
+    if "video_stabilization" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "video_stabilization_plan",
+                phase="source",
+                script="video_stabilization.py",
+                label="Plan source-bound stabilization and A/B review",
+                reason="The brief identifies unintended handheld or camera shake that may need stabilization.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/video_stabilization.py",
+                        "plan",
+                        source,
+                        "--decision",
+                        "review",
+                        "--output",
+                        "work/video_stabilization_plan.json",
+                        "--markdown",
+                        "work/video_stabilization_plan.md",
+                    ]
+                ),
+                outputs=["work/video_stabilization_plan.json", "work/video_stabilization_plan.md"],
+                gate_category="video_stabilization_plan",
+            ),
+        )
+        notes.append(
+            "After deciding to stabilize, regenerate the plan with --decision stabilize --reviewed-by, "
+            "run apply with a full-length --comparison, watch it at 1x, then run confirm."
+        )
+
+    if "video_enhancement" in ids:
+        wants_interpolation = any(
+            _contains(normalized, term)
+            for term in (
+                "frame interpolation",
+                "interpolate fps",
+                "motion interpolation",
+                "视频补帧",
+                "补到60帧",
+                "补到 60 帧",
+                "升到60帧",
+                "升到 60 帧",
+            )
+        )
+        wants_upscale = any(
+            _contains(normalized, term)
+            for term in (
+                "video upscale",
+                "upscale video",
+                "upscale to 4k",
+                "video enhancement",
+                "enhance video quality",
+                "视频放大",
+                "视频超分",
+                "增强视频清晰度",
+            )
+        )
+        enhancement_options: List[str] = []
+        if wants_upscale:
+            if any(_contains(normalized, term) for term in ("4k", "2160p")):
+                enhancement_options.extend(["--target-short-edge", "2160"])
+            elif any(_contains(normalized, term) for term in ("1440p", "2k")):
+                enhancement_options.extend(["--target-short-edge", "1440"])
+            elif _contains(normalized, "1080p"):
+                enhancement_options.extend(["--target-short-edge", "1080"])
+            else:
+                enhancement_options.extend(["--scale", "2"])
+        if wants_interpolation:
+            fps_match = re.search(r"(?<!\d)(24|25|30|48|50|60|90|120)\s*(?:fps|帧)", normalized)
+            enhancement_options.extend(["--fps", fps_match.group(1) if fps_match else "60"])
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "video_enhancement_plan",
+                phase="delivery",
+                script="video_enhancement.py",
+                label="Plan source-bound local resize and optional motion interpolation",
+                reason="The brief asks for a higher delivery resolution or synthesized output cadence.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/video_enhancement.py",
+                        "plan",
+                        source,
+                        *enhancement_options,
+                        "--enhanced",
+                        "output/video_enhanced.mp4",
+                        "--comparison",
+                        "verify/video_enhancement_ab.mp4",
+                        "--output",
+                        "work/video_enhancement_plan.json",
+                        "--markdown",
+                        "work/video_enhancement_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/video_enhancement_plan.json",
+                    "work/video_enhancement_plan.md",
+                    "output/video_enhanced.mp4",
+                    "verify/video_enhancement_ab.mp4",
+                ],
+                gate_category="video_enhancement_plan",
+            ),
+        )
+        notes.append(
+            "Run video_enhancement.py apply, watch the complete source-left/enhanced-right A/B and the "
+            "enhanced output with sound, then confirm detail, edges, motion cadence, and audio sync. "
+            "Lanczos resizing does not claim ML detail reconstruction."
+        )
+
+    if "chroma_key" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "chroma_key",
+                phase="source",
+                script="chroma_key.py",
+                label="Preview, review, and apply a source-bound chroma key",
+                reason="The brief asks to remove a green/blue screen and composite a replacement background.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/chroma_key.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--foreground",
+                        source,
+                        "--background",
+                        "<background_media>",
+                        "--output-video",
+                        "output/chroma_key_composite.mp4",
+                        "--preview-dir",
+                        "verify/chroma_key",
+                        "--report",
+                        "work/chroma_key.json",
+                        "--markdown",
+                        "work/chroma_key.md",
+                    ]
+                ),
+                outputs=[
+                    "work/chroma_key.json",
+                    "work/chroma_key.md",
+                    "verify/chroma_key/",
+                    "output/chroma_key_composite.mp4",
+                ],
+                gate_category="chroma_key",
+            ),
+        )
+        notes.append(
+            "Review every composite/matte pair, run chroma_key.py review with all four checks, then apply and verify. "
+            "Use output/chroma_key_composite.mp4 as the downstream source and watch the full result at 1x."
+        )
+
+    if "scoped_video_edit" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "scoped_video_edit_review",
+                phase="review",
+                script="scoped_video_edit_review.py",
+                label="Verify that a scoped AI video edit changed only its declared target",
+                reason="The brief asks for a localized video edit while preserving all named non-target layers.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/scoped_video_edit_review.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--source",
+                        source,
+                        "--edited",
+                        "work/scoped_video_edit.mp4",
+                        "--change-category",
+                        "other",
+                        "--change",
+                        "<one_exact_change>",
+                        "--preserve",
+                        "subject_identity",
+                        "--preserve",
+                        "performance_motion",
+                        "--preserve",
+                        "camera_motion",
+                        "--preserve",
+                        "source_audio",
+                        "--evidence-dir",
+                        "verify/scoped_video_edit",
+                        "--output",
+                        "work/scoped_video_edit_review_request.json",
+                        "--markdown",
+                        "work/scoped_video_edit_review_request.md",
+                        "--response-template",
+                        "work/scoped_video_edit_review_response.json",
+                    ]
+                ),
+                outputs=[
+                    "work/scoped_video_edit_review_request.json",
+                    "work/scoped_video_edit_review_response.json",
+                    "work/scoped_video_edit_review.json",
+                    "verify/scoped_video_edit/",
+                ],
+                gate_category="scoped_video_edit_review",
+            ),
+        )
+        notes.append(
+            "Use one change direction per provider call. After download, watch source and edited files in full at 1x, "
+            "review every same-time pair and both comparison audio tracks, then audit and live-verify the report."
+        )
+
+    if "speed_ramp" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "speed_ramp_plan",
+                phase="edit",
+                script="speed_ramp.py",
+                label="Plan source-bound local speed ramps",
+                reason="The brief asks for local slow-motion, velocity edits, or smooth speed changes around impact frames.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/speed_ramp.py",
+                        "plan",
+                        source,
+                        "--ramp",
+                        "<ramp_start>,<impact>,1,0.35,s_curve",
+                        "--hold",
+                        "<impact>,<hold_end>,0.35",
+                        "--ramp",
+                        "<hold_end>,<ramp_end>,0.35,1,ease",
+                        "--output",
+                        "work/speed_ramp_plan.json",
+                        "--markdown",
+                        "work/speed_ramp_plan.md",
+                    ]
+                ),
+                outputs=["work/speed_ramp_plan.json", "work/speed_ramp_plan.md"],
+                gate_category="speed_ramp_plan",
+            ),
+        )
+
+    if "freeze_punch" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "freeze_punch_plan",
+                phase="edit",
+                script="freeze_punch.py",
+                label="Plan and bind a source-bound freeze-punch emphasis",
+                reason="The brief asks to freeze an explicit impact frame and add a subtle punch-in without changing audio timing.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/freeze_punch.py",
+                        "plan",
+                        source,
+                        "--freeze",
+                        "<impact_time>,<freeze_duration>,1.08,0.5,0.5",
+                        "--delivery",
+                        "work/freeze-punched.mp4",
+                        "--output",
+                        "work/freeze_punch_plan.json",
+                        "--markdown",
+                        "work/freeze_punch_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/freeze_punch_plan.json",
+                    "work/freeze_punch_plan.md",
+                    "work/freeze-punched.mp4",
+                ],
+                gate_category="freeze_punch_plan",
+            ),
+        )
+        notes.append(
+            "Pick the impact frame manually, apply the plan, then run freeze_punch.py verify --strict and watch every entry/exit at 1x with audio. Avoid freezing a visible speaking mouth."
+        )
+
+    if "audio_transition" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_transition_plan",
+                phase="edit",
+                script="audio_transition.py",
+                label="Plan explicit source-bound J-cut/L-cut boundaries",
+                reason="The brief asks for audio to lead picture or continue after a visual cut.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/audio_transition.py",
+                        "plan",
+                        "work/render_config.json",
+                        "--transition",
+                        "<after_clip>,<j_cut|l_cut>,<duration_seconds>",
+                        "--output",
+                        "work/audio_transition_plan.json",
+                        "--markdown",
+                        "work/audio_transition_plan.md",
+                    ]
+                ),
+                outputs=["work/audio_transition_plan.json", "work/audio_transition_plan.md"],
+                gate_category="audio_transition_plan",
+            ),
+        )
+        notes.append(
+            "J-cut/L-cut timing must be chosen per boundary after listening to source handles. "
+            "Apply through render_final.py, then review every changed seam at 1x on headphones and phone speakers."
+        )
+
+    if "screen_focus" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "screen_focus",
+                phase="assets",
+                script="screen_focus.py",
+                label="Plan zoom/focus events for screen recordings",
+                reason="The brief mentions screen recording, demos, clicks, or cursor focus.",
+                command=shell([python_bin, "scripts/screen_focus.py", "--events", "work/screen_events.json", "--output", "work/screen_focus_plan.json"]),
+                outputs=["work/screen_focus_plan.json"],
+                gate_category="enrich_plan",
+                required=False,
+            ),
+        )
+
+    if "pip" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "pip_overlay",
+                phase="assets",
+                script="pip_overlay.py",
+                label="Plan facecam picture-in-picture overlay",
+                reason="The brief asks for facecam, webcam, or PIP camera overlay.",
+                command=shell([python_bin, "scripts/pip_overlay.py", "--camera", "<facecam_video>", "--segment", "0:30", "--output", "work/pip_overlays.json"]),
+                outputs=["work/pip_overlays.json"],
+                gate_category="enrich_plan",
+                required=False,
+            ),
+        )
+
+    if "broll" in ids or "generated_assets" in ids or "audio_design" in ids or "screen_focus" in ids or "pip" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "enrich_plan",
+                phase="assets",
+                script="auto_enrich.py",
+                label="Merge B-roll, generated assets, audio, focus, and PIP cues",
+                reason="The request needs visual or audio enrichment before final render.",
+                command=shell([python_bin, "scripts/auto_enrich.py", "--transcript", transcript_path, "--clean-script", clean_script, "--output", "work/enrich_plan.json"]),
+                outputs=["work/enrich_plan.json"],
+                gate_category="enrich_plan",
+            ),
+        )
+
+    if "edit_revision" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_revision_history",
+                phase="edit",
+                script="edit_revision.py",
+                label="Prepare a source-bound reversible edit revision",
+                reason="The brief asks for inspectable configuration changes with undo/redo instead of untracked overwrites.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/edit_revision.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--artifact",
+                        "work/render_config.json",
+                        "--depends-on",
+                        transcript_path,
+                        "--title",
+                        "<revision_title>",
+                        "--reason",
+                        "<review_reason>",
+                        "--output",
+                        "work/edit_revision_proposal.json",
+                        "--markdown",
+                        "work/edit_revision_proposal.md",
+                    ]
+                ),
+                outputs=[
+                    "work/edit_revision_proposal.json",
+                    "work/edit_revision_audit.json",
+                    "work/edit_revision_history.json",
+                ],
+                gate_category="edit_revision_history",
+            ),
+        )
+        notes.append(
+            "Edit proposed_content, then run edit_revision.py audit; apply requires a separate review-bound approval JSON. "
+            "Use undo/redo only while status reports current."
+        )
+
+    if "edit_style_profile" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_style_profile_template",
+                phase="plan",
+                script="edit_style_profile.py",
+                label="Scaffold the creator-owned edit style spec",
+                reason="The reusable profile needs an explicit, editable creative-direction source before it can be validated.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/edit_style_profile.py",
+                        "template",
+                        "--output",
+                        "work/edit_style_profile_spec.json",
+                    ]
+                ),
+                outputs=["work/edit_style_profile_spec.json"],
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_style_profile",
+                phase="plan",
+                script="edit_style_profile.py",
+                label="Create and verify a creator-owned edit style profile",
+                reason="The brief asks for a reusable creative direction and default editing grammar across projects.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/edit_style_profile.py",
+                        "create",
+                        "--spec",
+                        "work/edit_style_profile_spec.json",
+                        "--output",
+                        "work/edit_style_profile.json",
+                        "--markdown",
+                        "work/edit_style_profile.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/edit_style_profile.json",
+                    "work/edit_style_profile.md",
+                ],
+                gate_category="edit_style_profile",
+            ),
+        )
+        notes.append(
+            "Start with edit_style_profile.py template, then replace the example direction with the creator's actual decisions. "
+            "The profile only fills missing defaults; project config and CLI flags remain authoritative."
+        )
+
+    if "edit_recipe_export" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_recipe_export",
+                phase="edit",
+                script="edit_recipe.py",
+                label="Export the reviewed render config as a portable recipe",
+                reason="The brief asks to archive a repeatable edit while removing project-specific file paths.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/edit_recipe.py",
+                        "export",
+                        "--config",
+                        "work/render_config.json",
+                        "--name",
+                        "<recipe-name>",
+                        "--description",
+                        "<recipe-purpose>",
+                        "--output",
+                        "work/recipes/<recipe-name>_edit_recipe.json",
+                        "--markdown",
+                        "work/recipes/<recipe-name>_edit_recipe.md",
+                    ]
+                ),
+                outputs=[
+                    "work/recipes/<recipe-name>_edit_recipe.json",
+                    "work/recipes/<recipe-name>_edit_recipe.md",
+                ],
+                gate_category="edit_recipe",
+            ),
+        )
+
+    if "edit_recipe_replay" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_recipe_replay",
+                phase="edit",
+                script="edit_recipe.py",
+                label="Bind new local files and replay the portable recipe",
+                reason="The brief asks to reuse a reviewed edit template with replacement media.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/edit_recipe.py",
+                        "replay",
+                        "--recipe",
+                        "work/recipes/<recipe-name>_edit_recipe.json",
+                        "--bind",
+                        "<slot=local_path>",
+                        "--output",
+                        "work/render_config.json",
+                        "--receipt",
+                        "work/edit_recipe_replay.json",
+                        "--markdown",
+                        "work/edit_recipe_replay.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/render_config.json", "work/edit_recipe_replay.json", "work/edit_recipe_replay.md"],
+                gate_category="edit_recipe",
+            ),
+        )
+        notes.append(
+            "Replace every <slot=local_path> placeholder with one --bind per recipe slot. "
+            "A ready preflight still requires a rendered human preview before publish."
+        )
+
+    if "color_grade" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "color_grade",
+                phase="render",
+                script="color_grade.py",
+                label="Create a bounded color-grade plan",
+                reason="The brief asks for color, LUT, or a film/cinematic look.",
+                command=shell([python_bin, "scripts/color_grade.py", "--preset", "natural", "--output", "work/color_grade.json", "--markdown", "work/color_grade.md", "--strict"]),
+                outputs=["work/color_grade.json", "work/color_grade.md"],
+                gate_category="color_grade",
+                required=False,
+            ),
+        )
+
+    if "subtitle_style_preview" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "subtitle_style_preview",
+                phase="review",
+                script="subtitle_style_preview.py",
+                label="Render and choose subtitle styles on real source frames",
+                reason="The brief asks to compare the final ASS presets on representative footage before encoding.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/subtitle_style_preview.py",
+                        "create",
+                        "--project-dir",
+                        project_dir,
+                        "--video",
+                        source,
+                        "--platform",
+                        primary_platform,
+                        "--text",
+                        "<approved_sample_caption>",
+                        "--preview-dir",
+                        "verify/subtitle_styles",
+                        "--output",
+                        "work/subtitle_style_preview.json",
+                        "--markdown",
+                        "work/subtitle_style_preview.md",
+                        "--require-selection",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/subtitle_style_preview.json",
+                    "work/subtitle_style_preview.md",
+                    "verify/subtitle_styles/",
+                ],
+                gate_category="subtitle_style_preview",
+            ),
+        )
+        notes.append(
+            "Review every subtitle-style JPEG at phone size and full size, then run "
+            "subtitle_style_preview.py select. Pass the selected style to render_final.py; "
+            "any source, font, ASS preset, or preview-byte drift invalidates the old selection."
+        )
+
+    if "subtitle_glyph_qa" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "subtitle_glyph_qa",
+                phase="qa",
+                script="subtitle_glyph_qa.py",
+                label="Verify every final subtitle character against explicit fonts",
+                reason="A subtitle file can be structurally valid while rare CJK, emoji, or symbols render as missing-glyph boxes or silent font fallback.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/subtitle_glyph_qa.py",
+                        "analyze",
+                        "--project-dir",
+                        project_dir,
+                        "--subtitle-pack",
+                        "output/subtitles/final.json",
+                        "--font",
+                        "fonts/<final_subtitle_font.ttf>",
+                        "--output",
+                        "verify/subtitle_glyph_qa.json",
+                        "--markdown",
+                        "verify/subtitle_glyph_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/subtitle_glyph_qa.json", "verify/subtitle_glyph_qa.md"],
+                gate_category="subtitle_glyph_qa",
+            ),
+        )
+        notes.append(
+            "Use the exact font file configured for the final renderer. Add each intentional fallback with "
+            "--fallback-font; implicit system fallback is not evidence. After the gate, inspect the final captions at 1x."
+        )
+
+    if "final_audio_storyboard" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "locked_visual_edl",
+                phase="edit",
+                script="export_edl.py",
+                label="Export the locked visual EDL facts",
+                reason="Final audio timing must follow retained visual ranges and the final record timeline.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/export_edl.py",
+                        "--config",
+                        "work/render_config.json",
+                        "--output",
+                        "work/locked_visual.edl",
+                        "--manifest",
+                        "work/locked_visual.edl.json",
+                        "--fps",
+                        "30",
+                    ]
+                ),
+                outputs=["work/locked_visual.edl", "work/locked_visual.edl.json"],
+                gate_category="nle_handoff",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "final_audio_storyboard",
+                phase="assets",
+                script="final_audio_storyboard.py",
+                label="Rebuild the audio storyboard on the locked final timeline",
+                reason="The brief asks to remove, compress, or rewrite audio decisions after visual trims and reordering are locked.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/final_audio_storyboard.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--edl",
+                        "work/locked_visual.edl.json",
+                        "--storyboard",
+                        "work/storyboard_plan.json",
+                        "--output",
+                        "work/final_audio_storyboard_request.json",
+                        "--markdown",
+                        "work/final_audio_storyboard_request.md",
+                        "--response-template",
+                        "work/final_audio_storyboard_response.json",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/final_audio_storyboard_request.json",
+                    "work/final_audio_storyboard_response.json",
+                    "work/final_audio_storyboard.json",
+                ],
+                gate_category="final_audio_storyboard",
+            ),
+        )
+        notes.append(
+            "Set each EDL event label to its storyboard shot id, fill every final-timeline section and omitted-story "
+            "decision, then run final_audio_storyboard.py audit and verify. The approved JSON is a provider-neutral "
+            "handoff, not a paid audio submission payload."
+        )
+
+    if wants_render:
+        preflight_command = [
+            python_bin,
+            "scripts/edit_preflight.py",
+            "--config",
+            "work/render_config.json",
+        ]
+        if "broll" in ids or "generated_assets" in ids or "audio_design" in ids or "screen_focus" in ids or "pip" in ids:
+            preflight_command.extend(["--enrich-plan", "work/enrich_plan.json"])
+        preflight_command.extend(["--output", "work/edit_preflight.json", "--strict"])
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "edit_preflight",
+                phase="render",
+                script="edit_preflight.py",
+                label="Check render inputs before encoding",
+                reason="Render-time failures should be caught before running FFmpeg.",
+                command=shell(preflight_command),
+                outputs=["work/edit_preflight.json"],
+                gate_category="edit_preflight",
+            ),
+        )
+        primary_speed = "1.0" if "audio_transition" in ids else "1.25"
+        render_command = [python_bin, "scripts/render_final.py", "--config", "work/render_config.json", "--output", "output/final.mp4", "--primary-speed", primary_speed, "--versioned-output"]
+        if "broll" in ids or "generated_assets" in ids or "audio_design" in ids or "screen_focus" in ids or "pip" in ids:
+            render_command.extend(["--enrich-plan", "work/enrich_plan.json"])
+        if "color_grade" in ids:
+            render_command.extend(["--color-grade", "work/color_grade.json"])
+        if "audio_transition" in ids:
+            render_command.extend(["--audio-transition-plan", "work/audio_transition_plan.json"])
+        if "subtitle_style_preview" in ids:
+            render_command.extend(["--subtitle-style", "<selected_style>"])
+        if "edit_style_profile" in ids:
+            render_command.extend(["--style-profile", "work/edit_style_profile.json"])
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "master_video",
+                phase="render",
+                script="render_final.py",
+                label="Render final master MP4",
+                reason="The brief asks for an output video or a publishable edit.",
+                command=shell(render_command),
+                outputs=["output/final_V<N>.mp4"],
+                gate_category="master_video",
+            ),
+        )
+
+    needs_subtitle_render_review = "subtitle_render_review" in ids or (
+        wants_render and "transcript" in ids
+    )
+    if needs_subtitle_render_review:
+        if wants_render:
+            _add_step(
+                steps,
+                seen,
+                _step(
+                    "subtitle_pack_for_render_review",
+                    phase="qa",
+                    script="subtitle_pack.py",
+                    label="Export the exact final-timeline subtitle pack for rendered-pixel review",
+                    reason="The final-video proof review needs the expected text and timing for each rendered cue.",
+                    command=shell(
+                        [
+                            python_bin,
+                            "scripts/subtitle_pack.py",
+                            "--config",
+                            "work/render_config.json",
+                            "--mode",
+                            "concat",
+                            "--speed",
+                            primary_speed,
+                            "--offset",
+                            "<match_final_cover_duration_seconds>",
+                            "--output-dir",
+                            "output/subtitles",
+                            "--basename",
+                            "final",
+                        ]
+                    ),
+                    outputs=["output/subtitles/final.json"],
+                    gate_category="subtitles",
+                    required=False,
+                ),
+            )
+        review_video = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "subtitle_render_review",
+                phase="qa",
+                script="subtitle_render_review.py",
+                label="Review rendered subtitle pixels in the exact final video",
+                reason="A valid subtitle pack and font can still produce missing, stale, clipped, obscured, or unreadable captions in the delivery MP4.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/subtitle_render_review.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--video",
+                        review_video,
+                        "--subtitle-pack",
+                        "output/subtitles/final.json",
+                        "--proof-dir",
+                        "verify/subtitle_render",
+                        "--output",
+                        "work/subtitle_render_review_request.json",
+                        "--markdown",
+                        "work/subtitle_render_review_request.md",
+                        "--response-template",
+                        "work/subtitle_render_review_response.json",
+                    ]
+                ),
+                outputs=[
+                    "work/subtitle_render_review_request.json",
+                    "work/subtitle_render_review_response.json",
+                    "work/subtitle_render_review.json",
+                    "verify/subtitle_render/",
+                ],
+                gate_category="subtitle_render_review",
+            ),
+        )
+        notes.append(
+            "Set subtitle_pack --offset to the exact final cover/title-card duration before preparing proofs; "
+            "subtitle timing must match the rendered master. "
+            "Watch the exact final video from start to finish at 1x, inspect every sampled context clip and "
+            "midpoint frame against its expected cue, then run subtitle_render_review.py audit and verify. "
+            "Sampled proofs do not replace the full playback pass."
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "render_qa",
+                phase="qa",
+                script="render_qa.py",
+                label="Run black-frame, still-frame, audio, and dimension QA",
+                reason="Rendered videos should be checked before export or publish.",
+                command=shell([python_bin, "scripts/render_qa.py", "output/final.mp4", "--platform", primary_platform, "--json", "verify/render_qa.json", "--review-dir", "verify/render_qa"]),
+                outputs=["verify/render_qa.json", "verify/render_qa/"],
+                gate_category="render_qa",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_master_report",
+                phase="qa",
+                script="audio_master_report.py",
+                label="Check loudness, true peak, LRA, and long silence",
+                reason="Short-form publishing needs audio levels checked after final render.",
+                command=shell([python_bin, "scripts/audio_master_report.py", "output/final.mp4", "--output", "verify/audio_master_report.json", "--markdown", "verify/audio_master_report.md", "--strict"]),
+                outputs=["verify/audio_master_report.json", "verify/audio_master_report.md"],
+                gate_category="audio_master_report",
+                required=False,
+            ),
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids or "stream_coverage_qa" in ids:
+        coverage_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "stream_coverage_qa",
+                phase="qa",
+                script="stream_coverage_qa.py",
+                label="Verify decoded audio/video stream coverage and frame count",
+                reason="A playable container can hide a truncated picture or sound stream whose decoded timeline ends early.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/stream_coverage_qa.py",
+                        "analyze",
+                        coverage_input,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/stream_coverage_qa.json",
+                        "--markdown",
+                        "verify/stream_coverage_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/stream_coverage_qa.json", "verify/stream_coverage_qa.md"],
+                gate_category="stream_coverage_qa",
+            ),
+        )
+        notes.append(
+            "stream_coverage_qa.py hashes and fully decodes the final file, then compares decoded video/audio first and last PTS with the container timeline. "
+            "Pass --expected-duration and --expected-video-frames when the render plan defines exact values; watch the complete delivery at 1x after the gate passes."
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids or "audio_dropout_qa" in ids:
+        dropout_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_dropout_qa",
+                phase="qa",
+                script="audio_dropout_qa.py",
+                label="Screen brief audio dropouts and bind normal-speed listening evidence",
+                reason="Short digital gaps and broken joins can be too brief for the long-silence gate while still chopping speech.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/audio_dropout_qa.py",
+                        "analyze",
+                        dropout_input,
+                        "--project-dir",
+                        project_dir,
+                        "--evidence-dir",
+                        "verify/audio_dropout_clips",
+                        "--output",
+                        "verify/audio_dropout_qa_scan.json",
+                        "--markdown",
+                        "verify/audio_dropout_qa_scan.md",
+                        "--response-template",
+                        "verify/audio_dropout_qa_response.json",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "verify/audio_dropout_qa_scan.json",
+                    "verify/audio_dropout_qa_scan.md",
+                    "verify/audio_dropout_qa.md",
+                    "verify/audio_dropout_qa.json",
+                    "verify/audio_dropout_qa_response.json",
+                    "verify/audio_dropout_clips/",
+                ],
+                gate_category="audio_dropout_qa",
+            ),
+        )
+        notes.append(
+            "When audio_dropout_qa.py finds candidates, play the complete track and every WAV proof at 1x, "
+            "fill the response, then run audit and verify. Prefer the isolated final dialogue/narration stem; "
+            "BGM/SFX can hide speech dropouts, and deliberate pauses can trigger the locator."
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids or "audio_channel_qa" in ids:
+        channel_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "audio_channel_qa",
+                phase="qa",
+                script="audio_channel_qa.py",
+                label="Check final audio channel activity, onset, balance, phase, and mono fold-down",
+                reason="Stereo delivery can pass whole-program loudness while one channel starts early, is missing, or cancels in mono playback.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/audio_channel_qa.py",
+                        "analyze",
+                        channel_input,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/audio_channel_qa.json",
+                        "--markdown",
+                        "verify/audio_channel_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/audio_channel_qa.json", "verify/audio_channel_qa.md"],
+                gate_category="audio_channel_qa",
+            ),
+        )
+        notes.append(
+            "audio_channel_qa.py is a sampled engineering screen: audition the complete stereo master and "
+            "a mono fold-down at 1x, and keep audio_master_report.py as the separate loudness/peak gate."
+        )
+
+    if "narration_loudness_qa" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "narration_loudness_qa",
+                phase="qa",
+                script="narration_loudness_qa.py",
+                label="Measure every finalized narration phrase for loudness consistency",
+                reason="Phrase-scoped narration can contain local level jumps that a whole-program LUFS result hides.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/narration_loudness_qa.py",
+                        "analyze",
+                        "<final_narration_audio_or_video>",
+                        "--segments",
+                        "<final_narration_segments.json>",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/narration_loudness_qa.json",
+                        "--markdown",
+                        "verify/narration_loudness_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "verify/narration_loudness_qa.json",
+                    "verify/narration_loudness_qa.md",
+                ],
+                gate_category="narration_loudness_qa",
+            ),
+        )
+        notes.append(
+            "Use the finalized isolated narration track and exact final phrase ranges. Documented creative "
+            "exceptions never bypass the true-peak ceiling; after this gate, listen at 1x and run "
+            "audio_master_report.py on the mixed master."
+        )
+
+    if "caption_speech_qa" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "caption_speech_qa",
+                phase="qa",
+                script="caption_speech_qa.py",
+                label="Check every subtitle cue against the isolated speech timeline",
+                reason="Readable subtitle timing can still be grossly offset, orphaned, or extended through silence after editing or retiming.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/caption_speech_qa.py",
+                        "analyze",
+                        "<isolated_speech_audio_or_video>",
+                        "--subtitle-pack",
+                        "output/subtitles/final.json",
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/caption_speech_qa.json",
+                        "--markdown",
+                        "verify/caption_speech_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/caption_speech_qa.json", "verify/caption_speech_qa.md"],
+                gate_category="caption_speech_qa",
+            ),
+        )
+        notes.append(
+            "caption_speech_qa.py only measures amplitude activity: provide an isolated dialogue/narration "
+            "track without BGM/SFX, then watch the complete final captions and mix at 1x."
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids or "flash_safety_qa" in ids:
+        flash_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "flash_safety_qa",
+                phase="qa",
+                script="flash_safety_qa.py",
+                label="Screen final video for high-frequency luminance and red flashes",
+                reason="Final delivery should escalate repeated flashing or photosensitivity risk before platform export or publish.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/flash_safety_qa.py",
+                        "analyze",
+                        flash_input,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/flash_safety_qa.json",
+                        "--markdown",
+                        "verify/flash_safety_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/flash_safety_qa.json", "verify/flash_safety_qa.md"],
+                gate_category="flash_safety_qa",
+            ),
+        )
+        notes.append(
+            "flash_safety_qa.py is a local heuristic screen, not medical/legal certification; "
+            "repair flagged windows and use an accredited analyzer for regulated or high-risk delivery."
+        )
+
+    if wants_render or "qa" in ids or "publish" in ids or "temporal_artifact_qa" in ids:
+        artifact_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "temporal_artifact_qa",
+                phase="qa",
+                script="temporal_artifact_qa.py",
+                label="Screen single-frame and brief return-to-state visual artifacts",
+                reason="Final delivery can contain a one-frame tear, flash frame, or generated deformation that long-freeze and repeated-flash checks miss.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/temporal_artifact_qa.py",
+                        "analyze",
+                        artifact_input,
+                        "--project-dir",
+                        project_dir,
+                        "--evidence-dir",
+                        "verify/temporal_artifact_frames",
+                        "--output",
+                        "verify/temporal_artifact_qa.json",
+                        "--markdown",
+                        "verify/temporal_artifact_qa.md",
+                        "--response-template",
+                        "work/temporal_artifact_response.json",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "verify/temporal_artifact_qa.json",
+                    "verify/temporal_artifact_qa.md",
+                    "verify/temporal_artifact_frames/",
+                    "work/temporal_artifact_response.json",
+                ],
+                gate_category="temporal_artifact_qa",
+            ),
+        )
+        notes.append(
+            "temporal_artifact_qa.py only triages local return-to-state spikes. If candidates exist, "
+            "play the full video at 1x, inspect every before/suspect/after JPEG, complete the response, "
+            "and run audit before treating the gate as reviewed."
+        )
+
+    if "reference_edit_rhythm" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "reference_edit_rhythm",
+                phase="qa",
+                script="reference_edit_rhythm.py",
+                label="Measure reference-video edit rhythm against the rendered candidate",
+                reason="The brief asks to use a reference video's cut pacing or broad edit structure.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/reference_edit_rhythm.py",
+                        "analyze",
+                        "--project-dir",
+                        project_dir,
+                        "--reference",
+                        "<reference_video>",
+                        "--candidate",
+                        "output/final.mp4",
+                        "--evidence-dir",
+                        "verify/reference_edit_rhythm",
+                        "--output",
+                        "work/reference_edit_rhythm.json",
+                        "--markdown",
+                        "work/reference_edit_rhythm.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=[
+                    "work/reference_edit_rhythm.json",
+                    "work/reference_edit_rhythm.md",
+                    "verify/reference_edit_rhythm/",
+                ],
+                gate_category="reference_edit_rhythm",
+            ),
+        )
+        notes.append(
+            "Reference rhythm copies structure only, never pixels/audio/branding. Add --require-match only "
+            "when structural similarity is an explicit acceptance criterion, then verify the report before publish."
+        )
+
+    if "lip_sync_review" in ids:
+        lip_sync_video = "output/final.mp4" if ids.intersection({"render", "publish", "generated_assets"}) else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "lip_sync_review",
+                phase="qa",
+                script="lip_sync_review.py",
+                label="Export and review final-master lip-sync proof clips",
+                reason="Digital-human or generated talking-head delivery needs phrase-level mouth/audio review after final editing and audio replacement.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/lip_sync_review.py",
+                        "prepare",
+                        "--project-dir",
+                        project_dir,
+                        "--video",
+                        lip_sync_video,
+                        "--segment",
+                        "<segment_id>=<start>:<end>",
+                        "--anchor",
+                        "<segment_id>=<visible_plosive_phrase>",
+                        "--proof-dir",
+                        "verify/lip_sync",
+                        "--output",
+                        "work/lip_sync_review_request.json",
+                        "--markdown",
+                        "work/lip_sync_review_request.md",
+                        "--response-template",
+                        "work/lip_sync_review_response.json",
+                    ]
+                ),
+                outputs=[
+                    "work/lip_sync_review_request.json",
+                    "work/lip_sync_review_response.json",
+                    "work/lip_sync_review.json",
+                    "verify/lip_sync/",
+                ],
+                gate_category="lip_sync_review",
+            ),
+        )
+        notes.append(
+            "After reviewing every 1x and 0.25x proof, run lip_sync_review.py audit, then verify the source-bound report before publish. Any unobservable mouth/audio check fails closed."
+        )
+
+    if "subtitle_sidecar" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "subtitles",
+                phase="publish",
+                script="subtitle_pack.py",
+                label="Export SRT/VTT/ASS/JSON subtitle sidecars",
+                reason="The brief explicitly asks for subtitle files.",
+                command=shell([python_bin, "scripts/subtitle_pack.py", "--transcript", transcript_path, "--output-dir", "output/subtitles"]),
+                outputs=["output/subtitles/"],
+                gate_category="subtitles",
+                required=False,
+            ),
+        )
+
+    if "review_proxy" in ids:
+        proxy_input = "output/final.mp4" if wants_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "review_proxy",
+                phase="review",
+                script="review_proxy.py",
+                label="Create a lightweight timecoded review proxy",
+                reason="The brief asks for a shareable review video with precise timecode feedback.",
+                command=shell([python_bin, "scripts/review_proxy.py", proxy_input, "--output", "verify/final_review_proxy.mp4", "--manifest", "verify/final_review_proxy.json", "--markdown", "verify/final_review_proxy.md"]),
+                outputs=["verify/final_review_proxy.mp4", "verify/final_review_proxy.json", "verify/final_review_proxy.md"],
+                gate_category="review_proxy",
+                required=False,
+            ),
+        )
+
+    if "framing_preview" in ids:
+        framing_input = "output/final.mp4" if wants_render else source
+        framing_platforms = [item for item in platforms if item in {"xhs", "douyin", "wxch"}]
+        if not framing_platforms:
+            framing_platforms = ["xhs", "douyin", "wxch"]
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "framing_preview",
+                phase="publish",
+                script="framing_preview.py",
+                label="Compare and select platform framing treatments",
+                reason="The brief asks to preserve source composition or explicitly review crop, contain, and blurred-fill choices.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/framing_preview.py",
+                        "create",
+                        "--project-dir",
+                        project_dir,
+                        "--video",
+                        framing_input,
+                        "--platforms",
+                        *framing_platforms,
+                        "--preview-dir",
+                        "verify/framing",
+                        "--output",
+                        "work/framing_preview.json",
+                        "--markdown",
+                        "work/framing_preview.md",
+                        "--require-selection",
+                        "--strict",
+                    ]
+                ),
+                outputs=["work/framing_preview.json", "work/framing_preview.md", "verify/framing/"],
+                gate_category="framing_preview",
+            ),
+        )
+        notes.append(
+            "Review cover/contain/blur JPEGs per platform; protect faces, hands, readable UI, logos, product edges, and multi-subject context before selecting and exporting."
+        )
+
+    if "multi_platform" in ids or len(set(platforms)) > 1:
+        export_command = [python_bin, "scripts/multi_export.py", "output/final.mp4", "--platforms", "xhs", "douyin", "wxch"]
+        if "framing_preview" in ids:
+            export_command.extend(["--framing-preview", "work/framing_preview.json"])
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "platform_exports",
+                phase="publish",
+                script="multi_export.py",
+                label="Export platform-specific aspect ratios",
+                reason="The brief asks for multiple platforms or platform variants.",
+                command=shell(export_command),
+                outputs=["output/*_xhs.mp4", "output/*_douyin.mp4", "output/*_wxch.mp4"],
+                gate_category="platform_exports",
+            ),
+        )
+
+    if "hdr_sdr" in ids:
+        hdr_after_render = bool(
+            ids.intersection(
+                {
+                    "render",
+                    "target_script",
+                    "long_to_short",
+                    "batch_shorts",
+                    "cleanup_silence",
+                    "cleanup_words",
+                    "broll",
+                    "screen_focus",
+                    "pip",
+                    "color_grade",
+                    "edit_recipe_replay",
+                }
+            )
+        )
+        hdr_input = "output/final.mp4" if hdr_after_render else source
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "hdr_sdr_plan",
+                phase="publish",
+                script="hdr_sdr.py",
+                label="Plan a source-bound HDR to Rec.709 SDR delivery",
+                reason="The brief identifies PQ/HLG HDR footage that needs a predictable SDR social-platform derivative.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/hdr_sdr.py",
+                        "plan",
+                        hdr_input,
+                        "--delivery",
+                        "output/final_sdr.mp4",
+                        "--output",
+                        "work/hdr_sdr_plan.json",
+                        "--markdown",
+                        "work/hdr_sdr_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/hdr_sdr_plan.json",
+                    "work/hdr_sdr_plan.md",
+                    "output/final_sdr.mp4",
+                ],
+                gate_category="hdr_sdr_plan",
+            ),
+        )
+        notes.append(
+            "hdr_sdr.py refuses unknown/incomplete color metadata and FFmpeg builds without zscale+tonemap; "
+            "after apply, review the full SDR derivative for skin tones, highlights, shadows, and gradients."
+        )
+
+    if "delivery_encode" in ids:
+        delivery_after_render = bool(
+            ids.intersection(
+                {
+                    "render",
+                    "target_script",
+                    "long_to_short",
+                    "batch_shorts",
+                    "cleanup_silence",
+                    "cleanup_words",
+                    "broll",
+                    "screen_focus",
+                    "pip",
+                    "color_grade",
+                    "edit_recipe_replay",
+                }
+            )
+        )
+        if "hdr_sdr" in ids:
+            delivery_input = "output/final_sdr.mp4"
+        else:
+            delivery_input = "output/final.mp4" if delivery_after_render else source
+        size_limit = infer_delivery_size_mib(normalized)
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "delivery_encode_plan",
+                phase="publish",
+                script="delivery_encode.py",
+                label="Plan a source-bound target-size delivery MP4",
+                reason="The brief includes a file-size or upload ceiling that fixed-CRF export cannot guarantee.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/delivery_encode.py",
+                        "plan",
+                        delivery_input,
+                        "--delivery",
+                        "output/final_delivery.mp4",
+                        "--max-size-mib",
+                        str(size_limit) if size_limit is not None else "<max_size_mib>",
+                        "--output",
+                        "work/delivery_encode_plan.json",
+                        "--markdown",
+                        "work/delivery_encode_plan.md",
+                    ]
+                ),
+                outputs=[
+                    "work/delivery_encode_plan.json",
+                    "work/delivery_encode_plan.md",
+                    "output/final_delivery.mp4",
+                ],
+                gate_category="delivery_encode_plan",
+            ),
+        )
+        notes.append(
+            "After reviewing the two-pass plan, run delivery_encode.py apply, then watch the complete "
+            "delivery at normal speed and bind the exact output into render QA / approval receipt."
+        )
+
+    if "delivery_encode" in ids or "encode_quality_qa" in ids:
+        if "delivery_encode" in ids:
+            quality_reference = delivery_input
+            quality_candidate = "output/final_delivery.mp4"
+        else:
+            quality_reference = source
+            quality_candidate = "<encoded_candidate>"
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "encode_quality_qa",
+                phase="qa",
+                script="encode_quality_qa.py",
+                label="Measure visual loss in the same-timeline delivery encode",
+                reason="A decodable size-constrained or transcoded file can still contain visible compression loss.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/encode_quality_qa.py",
+                        "analyze",
+                        quality_reference,
+                        quality_candidate,
+                        "--project-dir",
+                        project_dir,
+                        "--output",
+                        "verify/encode_quality_qa.json",
+                        "--markdown",
+                        "verify/encode_quality_qa.md",
+                        "--strict",
+                    ]
+                ),
+                outputs=["verify/encode_quality_qa.json", "verify/encode_quality_qa.md"],
+                gate_category="encode_quality_qa",
+            ),
+        )
+        notes.append(
+            "encode_quality_qa.py is only valid for same-timeline, same-composition derivatives. "
+            "Inspect its worst-frame timecodes at 1x; use human A/B review instead after crop, grade, "
+            "HDR tone mapping, retiming, interpolation, or editorial changes."
+        )
+
+    if "publish" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "caption",
+                phase="publish",
+                script="generate_caption.py",
+                label="Generate title, body copy, tags, and post timing",
+                reason="The brief asks for publish copy, title, tags, or upload package.",
+                command=shell(
+                    [
+                        python_bin,
+                        "scripts/generate_caption.py",
+                        "--script",
+                        clean_script,
+                        "--profile",
+                        "tech_pro",
+                        *(
+                            ["--style-profile", "work/edit_style_profile.json"]
+                            if "edit_style_profile" in ids
+                            else []
+                        ),
+                        "--output",
+                        "work/caption.json",
+                    ]
+                ),
+                outputs=["work/caption.json"],
+                gate_category="caption",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "publish_package",
+                phase="publish",
+                script="publish_package.py",
+                label="Assemble final local publish package",
+                reason="The request ends at upload-ready deliverables.",
+                command=shell([python_bin, "scripts/publish_package.py", "--project-dir", project_dir, "--platforms", *platforms, "--caption", "work/caption.json", "--output", "work/publish_package.json", "--markdown", "work/publish_package.md", "--strict"]),
+                outputs=["work/publish_package.json", "work/publish_package.md"],
+                gate_category="publish_package",
+            ),
+        )
+
+    if "nle_handoff" in ids:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "nle_handoff",
+                phase="handoff",
+                script="export_otio.py",
+                label="Export timeline handoff for professional NLEs",
+                reason="The brief mentions Premiere, Final Cut, Resolve, EDL, FCPXML, or OTIO.",
+                command=shell([python_bin, "scripts/export_otio.py", "--config", "work/render_config.json", "--output", "edit/timeline.otio"]),
+                outputs=["edit/timeline.otio", "edit/timeline.otio.json"],
+                gate_category="nle_handoff",
+                required=False,
+            ),
+        )
+
+    if "review_dashboard" in ids or len(steps) >= 8:
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "review_dashboard",
+                phase="review",
+                script="review_dashboard.py",
+                label="Build a browser-readable review queue",
+                reason="The plan has several gates or the brief asks for a review dashboard.",
+                command=shell([python_bin, "scripts/review_dashboard.py", "--project-dir", project_dir, "--output", "work/review_dashboard.json", "--html", "work/review_dashboard.html", "--strict"]),
+                outputs=["work/review_dashboard.json", "work/review_dashboard.html"],
+                gate_category="review_dashboard",
+                required=False,
+            ),
+        )
+
+    if (
+        "runtime_preflight" not in ids
+        and not [step for step in steps if step.get("id") != "runtime_preflight"]
+        and normalized
+    ):
+        warnings.append("no specific edit signals matched; emitted a minimal transcript-to-render path")
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "transcript",
+                phase="analysis",
+                script="transcribe.py",
+                label="Transcribe source media",
+                reason="Fallback path for a generic video edit brief.",
+                command=shell([python_bin, "scripts/transcribe.py", source, "--word-timestamps", "--detect-fillers"]),
+                outputs=[transcript_path],
+                gate_category="transcript",
+            ),
+        )
+        _add_step(
+            steps,
+            seen,
+            _step(
+                "master_video",
+                phase="render",
+                script="render_final.py",
+                label="Render final master MP4",
+                reason="Fallback path for a generic video edit brief.",
+                command=shell([python_bin, "scripts/render_final.py", "--config", "work/render_config.json", "--output", "output/final.mp4"]),
+                outputs=["output/final.mp4"],
+                gate_category="master_video",
+            ),
+        )
+
+    gates = []
+    for step in steps:
+        category = str(step.get("gate_category") or "")
+        if not category or any(gate["category"] == category for gate in gates):
+            continue
+        gates.append(
+            {
+                "category": category,
+                "required": bool(step.get("required")),
+                "reason": step.get("reason", ""),
+            }
+        )
+
+    return {
+        "version": VERSION,
+        "generated_at": utc_now(),
+        "status": "blocked" if blockers else "ready",
+        "source": {
+            "brief": normalized,
+            "project_dir": project_dir,
+            "source_media": source_media,
+            "working_source": source if source != source_input else source_media,
+            "transcript": transcript,
+            "platforms": platforms,
+        },
+        "signals": signals,
+        "steps": steps,
+        "gates": gates,
+        "notes": notes,
+        "warnings": warnings,
+        "blockers": blockers,
+        "summary": {
+            "signals": len(signals),
+            "steps": len(steps),
+            "required_steps": sum(1 for step in steps if step.get("required")),
+            "blocking": len(blockers),
+            "warnings": len(warnings),
+        },
+    }
+
+
+def emit_markdown(plan: Mapping[str, Any]) -> str:
+    source = plan.get("source") if isinstance(plan.get("source"), Mapping) else {}
+    lines = [
+        "# Edit Brief Plan",
+        "",
+        f"- Status: `{plan.get('status')}`",
+        f"- Platforms: {', '.join(source.get('platforms') or [])}",
+        f"- Project: `{source.get('project_dir') or '.'}`",
+        "",
+        "## Brief",
+        "",
+        str(source.get("brief") or ""),
+        "",
+    ]
+
+    blockers = [str(item) for item in plan.get("blockers") or []]
+    warnings = [str(item) for item in plan.get("warnings") or []]
+    notes = [str(item) for item in plan.get("notes") or []]
+    if blockers:
+        lines.extend(["## Blockers", ""])
+        lines.extend(f"- {item}" for item in blockers)
+        lines.append("")
+    if warnings:
+        lines.extend(["## Warnings", ""])
+        lines.extend(f"- {item}" for item in warnings)
+        lines.append("")
+    if notes:
+        lines.extend(["## Notes", ""])
+        lines.extend(f"- {item}" for item in notes)
+        lines.append("")
+
+    lines.extend(["## Matched Signals", ""])
+    for signal in plan.get("signals") or []:
+        if not isinstance(signal, Mapping):
+            continue
+        terms = ", ".join(str(item) for item in signal.get("matched_terms") or [])
+        lines.append(f"- **{signal.get('label') or signal.get('id')}**: {terms}")
+    lines.append("")
+
+    lines.extend(["## Runbook", ""])
+    for step in plan.get("steps") or []:
+        if not isinstance(step, Mapping):
+            continue
+        lines.extend(
+            [
+                f"### {step.get('order')}. {step.get('label')}",
+                "",
+                f"- Phase: `{step.get('phase')}`",
+                f"- Script: `{step.get('script')}`",
+                f"- Gate: `{step.get('gate_category')}`",
+                f"- Why: {step.get('reason')}",
+                "- Command:",
+                "",
+                "```bash",
+                str(step.get("command") or ""),
+                "```",
+                "",
+            ]
+        )
+        outputs = [str(item) for item in step.get("outputs") or []]
+        if outputs:
+            lines.append("- Outputs: " + ", ".join(f"`{item}`" for item in outputs))
+            lines.append("")
+
+    lines.extend(["## Manifest Check", ""])
+    required = [gate["category"] for gate in plan.get("gates") or [] if isinstance(gate, Mapping) and gate.get("required")]
+    require_args = " ".join(f"--require {shlex.quote(category)}" for category in required)
+    lines.extend(
+        [
+            "After producing the planned artifacts, check the requested gates:",
+            "",
+            "```bash",
+            f"python3 scripts/pipeline_manifest.py --project-dir {shlex.quote(str(source.get('project_dir') or '.'))} --target-stage publish_ready {require_args} --strict",
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Route a natural-language edit brief to local video workflow scripts.")
+    brief_group = parser.add_mutually_exclusive_group(required=True)
+    brief_group.add_argument("--brief", help="Natural-language video edit request")
+    brief_group.add_argument("--brief-file", help="Path to a text/Markdown file containing the edit request")
+    parser.add_argument("--project-dir", default=".", help="Video project directory used in generated commands")
+    parser.add_argument("--source-media", default="", help="Optional source video/audio path")
+    parser.add_argument("--transcript", help="Optional existing transcript JSON path")
+    parser.add_argument("--platform", choices=["douyin", "instagram_reels", "tiktok", "wxch", "xhs", "youtube_shorts"], help="Override platform detection")
+    parser.add_argument("--python-bin", default="python3")
+    parser.add_argument("--output", default="work/edit_brief_plan.json")
+    parser.add_argument("--markdown", help="Optional Markdown runbook path")
+    parser.add_argument("--strict", action="store_true", help="Exit 2 when the plan has blockers")
+    return parser.parse_args(argv)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    args = parse_args(argv)
+    brief = args.brief if args.brief is not None else load_text(args.brief_file)
+    plan = build_plan(
+        brief,
+        project_dir=args.project_dir,
+        source_media=args.source_media,
+        transcript=args.transcript,
+        platform=args.platform,
+        python_bin=args.python_bin,
+    )
+    write_json(args.output, plan)
+    if args.markdown:
+        write_text(args.markdown, emit_markdown(plan))
+    if plan["status"] == "blocked":
+        print(f"Edit brief plan blocked: {plan['summary']['blocking']} blocker(s)", file=sys.stderr)
+        return 2 if args.strict else 0
+    print(f"Edit brief plan ready: {plan['summary']['steps']} step(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

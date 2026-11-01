@@ -1,0 +1,213 @@
+# 45 — Video Prompt Pack 视频生成提示词包
+
+把 `storyboard_plan.json` 转成可提交给 Dreamina/即梦 Seedance、Veo、LTX、Wan、Sora 等视频生成模型的提示词包。脚本只做本地提示词、参考图路径、角色/品牌一致性和付费审批门禁，不会联网、不提交任务、不消耗 credits。
+
+生图优先使用 Codex 内置 `image_gen` 工具，即 OpenAI GPT Image 2（`gpt-image-2`）。
+
+## 何时用
+
+- 已经有 `storyboard_plan.json`，准备把部分 shot 交给视频生成模型。
+- 想把同一组分镜导出为 Dreamina/即梦、Veo、LTX、Wan 或 Sora 的不同提示词版本。
+- 需要先生成角色/风格参考 sheet，再做 image-to-video。
+- 需要把同一张 style key 绑定到所有生成 shot，减少跨镜头风格漂移。
+- 想在执行 paid video generation 前，用 `--strict` 拦住未审批任务。
+- 已经有经人工批准的 `generation_lessons.json`，想按 provider/model/category 把少量复盘经验带回下一次提示词。
+- 需要用带日期的 `provider_capabilities.json` 约束当前 UI/API 的 mode、时长、画幅、分辨率和参考上限。
+- 需要把共享 style image 自动路由成 `reference_to_video`，再交给多模态 reference 门禁绑定图片、视频和音频。
+- 已审核 `sequence_handoff.json`，需要把相邻镜头的 receive-in / handoff-out、剪辑类型、轴线方向、音频桥和 edit handles 写进最终 prompt。
+- 已审核上一条生成片，且同一场景的下一镜要用真实末帧作为精确首帧；先完成 [124-Generation Chain Handoff](124-generation-chain-handoff.md)，再把报告传给 prompt pack。
+- 已审核参考片的情绪/叙事机制和目标镜头映射；先完成 [125-Reference Story Formula](125-reference-story-formula.md)，再把报告作为 structure-only guidance 传给 prompt pack。
+
+## 命令
+
+```bash
+python3 scripts/video_prompt_pack.py \
+  --project-dir . \
+  --storyboard-plan work/storyboard_plan.json \
+  --reference-story-formula work/reference_story_formula.json \
+  --sequence-handoff work/sequence_handoff.json \
+  --asset-root work \
+  --character "same Chinese founder-host, navy jacket" \
+  --brand-anchor "palette=charcoal,white,signal yellow" \
+  --style-reference work/imagegen/style-key.png \
+  --output work/video_prompt_pack.json \
+  --markdown work/video_prompt_pack.md \
+  --strict
+```
+
+`--strict` 会在视频生成 provider 还没有 `--approved`，或 capability profile 仍有 blocker 时返回退出码 `2`。这适合放在生成前和发布前检查，避免 agent 直接批量提交 paid jobs 或使用未核验设置。
+
+审批后再导出可执行包：
+
+```bash
+python3 scripts/video_prompt_pack.py \
+  --project-dir . \
+  --storyboard-plan work/storyboard_plan.json \
+  --sequence-handoff work/sequence_handoff.json \
+  --asset-root work \
+  --provider dreamina_seedance \
+  --capability-profile work/provider_capabilities.json \
+  --require-capability-profile \
+  --resolution 720p \
+  --lesson-library work/generation_lessons.json \
+  --lesson-model seedance-2.0 \
+  --lesson-limit 3 \
+  --animate-stills \
+  --approved \
+  --output work/video_prompt_pack.json \
+  --markdown work/video_prompt_pack.md
+```
+
+## Provider 路由
+
+| 输入 route / 参数 | 默认输出 | 说明 |
+|---|---|---|
+| `dreamina_video` | `dreamina_seedance` | 标记 `approval_required`，提交前确认 credits |
+| `codex_imagegen` | `codex_imagegen` | 先用 Codex `image_gen` 做静态参考图 |
+| `codex_imagegen + --animate-stills` | `dreamina_seedance` `image_to_video` | 把参考图转成视频生成提示词 |
+| generated-video provider + `--style-reference` | `reference_to_video` | 没有逐镜首帧时，共享 style reference 触发语义参考模式 |
+| `--reference-story-formula` | 保持原 provider/mode | live-verify 参考片故事公式，并把机制、观众状态变化、目标内容锚点和复制排除合同注入对应 shot |
+| `--generation-chain-handoff` | `image_to_video` | 已审上一镜真实末帧覆盖下一镜 reference；只接受当前 storyboard 的相邻边界，可重复传入 |
+| `--mode reference_to_video` | 指定 provider | 使用图片/视频/音频做语义参考；提交前运行 `generation_reference_preflight.py` |
+| `--mode video_edit/video_extension/clip_stitching` | 指定 provider | 显式声明编辑、延长或拼接模式；仍以 exact surface capability profile 为准 |
+| `remotion_hyperframes` | `remotion_hyperframes` | 本地动效 brief，不需要 provider credits |
+| `media_library_broll` | `media_library_broll` | 本地素材搜索 query，不生成 |
+| `--provider veo/ltx/wan/sora` | 指定 provider | 同一分镜可导出不同模型提示词 |
+
+## 输出内容
+
+`video_prompt_pack.v1` 包含：
+
+- `global.character_sheet_prompt`：角色/品牌/风格参考 sheet 提示词。
+- `global.style_reference`：共享 style key 的 expected/resolved path。
+- `global.sequence_handoff`：已现场验证的 handoff report id 和边界数。
+- `global.reference_story_formula`：已现场验证的公式 report id、参考源和目标 storyboard 绑定。
+- `global.generation_chain_handoffs`：本次使用的 live-verified 真实末帧接力 artifact ids。
+- `items[].prompt`：按 provider 改写后的 shot 提示词。
+- `items[].sequence_handoff`：该镜头的 incoming/outgoing 边界；首镜只有 outgoing，末镜只有 incoming。
+- `items[].reference_story_formula`：该镜头对应的 beat、mechanism、viewer-state shift、target content anchor、surface change、visual action 与复制排除合同。
+- `items[].generation_chain_handoff`：上一镜、边界、确切 decoded frame index/PTS、frame hash 与 reviewer label；该镜头的 reference 已切到 handoff PNG。
+- `items[].generation_lessons`：本 shot 命中的 approved lesson、scope、source evidence；prompt 只追加通用 `lesson`，不会自动复用旧片段专属 `prompt_fix`。
+- `global.lesson_library.library_id`：本次 prompt pack 使用的 canonical 经验库版本。
+- `items[].style_reference`：每个 shot 指向同一 style key；prompt 会追加一致的 `STYLE LOCK`。
+- `items[].reference.expected_path/resolved_path`：默认查找 `work/imagegen/<shot_id>.png`，供 image-to-video 使用。
+- `items[].negative_prompt`：统一避免字幕、水印、UI、畸形手、闪烁等问题。
+- `items[].approval_status`：`needs_approval` / `approved` / `not_required`。
+- `items[].surface/model/resolution` 与 `items[].capability_profile`：匹配的具体执行入口、模型、分辨率、核验日期和 canonical profile id。
+- `items[].capability_issues`：未找到 profile、profile 过期、mode/画幅/时长/分辨率不支持或参考图超限等 blocker。
+- `summary.capability_blocking`：capability blockers 数量。
+- `summary.blocking`：未审批 paid video generation + capability blockers；`pipeline_manifest.py` 会读取它作为 gate。
+
+`pipeline_manifest.py` 还会用当前 `provider_capabilities.json` 重算 bundle/profile id 与每个 shot 的 capability issues；替换 profile 内容后必须重新生成 prompt pack，不能只手改旧 summary。
+
+当 prompt pack 使用 `reference_to_video / video_edit / video_extension / clip_stitching` 时，继续运行 [122-Generation Reference Preflight](122-generation-reference-preflight.md)。它会把实际提交的图片、视频、音频顺序、角色、排除项、完整解码结果和 provider 限额绑定到新的 live report；prompt pack 本身不探测这些外部 reference 文件。
+
+## 推荐流程
+
+```bash
+# 1. 先生成分镜
+python3 scripts/storyboard_plan.py \
+  --transcript work/transcript.json \
+  --clean-script work/clean_script.md \
+  --output work/storyboard_plan.json \
+  --markdown work/storyboard_plan.md
+
+# 2. 把抽象 shot 先做成参考图
+python3 scripts/video_prompt_pack.py \
+  --storyboard-plan work/storyboard_plan.json \
+  --asset-root work \
+  --output work/video_prompt_pack.json \
+  --markdown work/video_prompt_pack.md
+
+# 2b. 两条以上生成镜头先准备、审核并验证边界合同
+python3 scripts/sequence_handoff.py prepare \
+  --project-dir . \
+  --storyboard work/storyboard_plan.json \
+  --output work/sequence_handoff_request.json \
+  --markdown work/sequence_handoff_request.md \
+  --response-template work/sequence_handoff_response.json
+# 填写 response 后运行 audit 与 verify；详见 120-sequence-handoff.md。
+
+# 2c. 要迁移参考片故事机制时，先建立并审核 source-bound 公式
+python3 scripts/reference_story_formula.py prepare \
+  --project-dir . \
+  --reference-video origin/reference.mp4 \
+  --reference-transcript origin/reference_transcript.json \
+  --target-storyboard work/storyboard_plan.json \
+  --output work/reference_story_formula_request.json \
+  --markdown work/reference_story_formula_request.md \
+  --response-template work/reference_story_formula_response.json \
+  --strict
+# 完整看听参考片并填写 response 后，运行 audit 与 verify；详见 125-reference-story-formula.md。
+
+# 3. 按 video_prompt_pack.md 用 Codex image_gen 做 reference sheet / stills
+#    注意：Dreamina/即梦等视频生成可能消耗 credits，提交前先确认。
+
+# 4. 确认后再生成可执行视频提示词包，并锁定共享 style key
+python3 scripts/provider_capability.py verify \
+  --bundle work/provider_capabilities.json \
+  --max-age-days 30 \
+  --strict
+python3 scripts/generation_lessons.py verify \
+  --library work/generation_lessons.json \
+  --strict
+python3 scripts/video_prompt_pack.py \
+  --project-dir . \
+  --storyboard-plan work/storyboard_plan.json \
+  --reference-story-formula work/reference_story_formula.json \
+  --sequence-handoff work/sequence_handoff.json \
+  --asset-root work \
+  --style-reference work/imagegen/style-key.png \
+  --capability-profile work/provider_capabilities.json \
+  --require-capability-profile \
+  --resolution 720p \
+  --lesson-library work/generation_lessons.json \
+  --lesson-model seedance-2.0 \
+  --lesson-limit 3 \
+  --animate-stills \
+  --approved \
+  --output work/video_prompt_pack.json \
+  --markdown work/video_prompt_pack.md
+
+# 5. paid provider 提交前，检查首帧/style key
+python3 scripts/reference_frame_preflight.py \
+  --prompt-pack work/video_prompt_pack.json \
+  --output work/reference_frame_preflight.json \
+  --markdown work/reference_frame_preflight.md \
+  --require-style-reference \
+  --strict
+
+# 5b. 语义/编辑类多模态 references：生成 manifest，填写后做完整解码与限额检查
+python3 scripts/generation_reference_preflight.py template \
+  --project-dir . \
+  --prompt-pack work/video_prompt_pack.json \
+  --output work/generation_references.json
+python3 scripts/generation_reference_preflight.py analyze \
+  --project-dir . \
+  --prompt-pack work/video_prompt_pack.json \
+  --references work/generation_references.json \
+  --capability-profile work/provider_capabilities.json \
+  --output work/generation_reference_preflight.json \
+  --markdown work/generation_reference_preflight.md \
+  --strict
+
+# 6. 生成视频落盘后，回到素材预检
+python3 scripts/storyboard_assets.py \
+  --storyboard-plan work/storyboard_plan.json \
+  --asset-root work \
+  --output work/storyboard_assets.json \
+  --markdown work/storyboard_assets.md \
+  --strict
+```
+
+## 设计原则
+
+- 提示词和审批状态先落盘，provider 执行后置。
+- 默认小批量、逐 shot 审批，避免无意消耗 Dreamina/即梦或其他 provider credits。
+- 先用 Codex `image_gen` 做角色/风格/首帧参考，再进入 image-to-video，减少人物和品牌漂移。
+- 共享 style key 必须在所有生成 shot 中保持同一路径；提交前用 `reference_frame_preflight.py` 检查画幅和背景。
+- 多模态 reference 必须逐份填写一个窄角色和明确排除项，按 ready 报告里的 `@ImageN / @VideoN / @AudioN` 顺序提交；不要只靠文件名或自由文本猜绑定关系。
+- 经验库必须先经 `generation_lessons.py verify`；未传 `--lesson-model` 时只用 provider-wide 经验，默认每个 shot 最多 3 条，避免历史规则淹没当前创意意图。
+- provider 能力必须绑定 exact surface/model 和核验日期；profile 默认超过 30 天即失效，不能把一个 UI/API 的限制搬到另一个入口。完整 schema 与边界见 [96-Provider Capability Profile](96-provider-capability.md)。
+- `--sequence-handoff` 只接受无 blocker 且现场验证通过的报告；它把审核内容写进 prompt，最终效果仍要经过逐片和跨镜头复核。完整流程见 [120-Sequence Handoff](120-sequence-handoff.md)。
+- 生成视频仍要经过 `storyboard_assets.py`、`asset_provenance.py`、`render_qa.py` 和必要的 `timeline_view.py`。

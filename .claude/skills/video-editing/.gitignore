@@ -1,0 +1,52 @@
+# OS
+.DS_Store
+
+# Local-only notes (personal workflow, secrets, scratch — never committed)
+NOTES.local.md
+*.local.md
+.notes/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Fonts (auto-downloaded by burn_subtitles.py)
+fonts/
+
+# User video workspace
+videos/
+origin/
+
+# Intermediate files (generated during processing)
+*_audio.wav
+*_transcript.json
+*_clips/
+*_clips_subtitled/
+*_with_cover.mp4
+*_chapters.mp4
+
+# Output videos
+final*.mp4
+
+# Build config
+build_config.py
+render_config.json
+
+# Covers
+covers/
+
+# Preview frames
+preview_frames/
+
+# Firebase
+firebase-debug.log
+
+# Media library
+media/
+media_index.json
+media_index.db
+media_index.json.bak
+
+# Research artifacts from automation runs
+research-archive/
