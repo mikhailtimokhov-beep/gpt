@@ -19,6 +19,10 @@
 - `gsap-*` (core, timeline, scrolltrigger, plugins, utils, performance) — анимации при прокрутке и сложные сцены.
 - Переходы между страницами: View Transitions API в CSS/JS; для React — `/vercel-react-view-transitions`.
 - `find-animation-opportunities`, `animation-performance` — где добавить движение и как не тормозить.
+- `cast` (genjutsu) — оживить UI: тезис взаимодействия, подбор техник, реализация. `motion-design` — тайминги, кривые, хореография.
+- 3D: `threejs-fundamentals` — вход; остальные `threejs-*` читать по пути из него.
+- `design-dna` — разобрать референс (скриншот/URL) в JSON-стиль и собрать по нему.
+- Вручную, дорого или дублирует: `/paint` (полный дизайн-конвейер genjutsu), `/bunshin` (сайт целиком параллельными агентами).
 
 ## 4. Проверка (обязательно)
 - Открой результат через Playwright MCP (`.mcp.json`) или `webapp-testing`, сделай скриншоты 390px и 1440px.
