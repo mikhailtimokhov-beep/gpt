@@ -1,6 +1,6 @@
 ---
 name: clipify
-description: Find compelling moments in a video — funny dialogue OR repeated impact actions like axe chops, hits, throws, drumbeats — cut them as standalone clips, optionally reformat 16:9 ↔ 9:16, time-warp pans for tighter reveals, and burn opus-style word-by-word captions. Use when the user mentions "clipify," "cut clips from this video," "make shorts from this," "find funny moments," "action montage," "cut on each chop/hit/punch," "reframe to 9:16," "vertical clips," or pastes a video file path and wants social-ready cuts.
+description: "Cut social clips from a long video: find funny or high-impact moments, cut them, reframe 16:9 <-> 9:16 and burn word-by-word captions. Use for 'make shorts/clips from this video'."
 ---
 
 # Clipify
