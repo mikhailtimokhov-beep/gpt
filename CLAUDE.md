@@ -9,14 +9,15 @@
 - `design-system`, `brand`, `theme-factory` — токены, бренд, темы.
 
 ## 2. Сборка
-- `ui-styling`, `pick-ui-library`, `vercel-composition-patterns`, `vercel-react-best-practices` — компоненты и код.
-- `web-artifacts-builder`, `prototype` — быстрые прототипы.
+- `ui-styling`, `pick-ui-library` — компоненты и код.
+- `prototype` — быстрые прототипы.
+- Только для React/Vue/Remotion, вызываются вручную через `/имя` (скрыты из контекста ради экономии): `vercel-composition-patterns`, `vercel-react-best-practices`, `vercel-react-view-transitions`, `gsap-react`, `gsap-frameworks`, `web-artifacts-builder`, `video-shotcraft`.
 - `canvas-design`, `algorithmic-art`, `banner-design` — графика, постеры, генеративные фоны, баннеры.
 
 ## 3. Движение
 - `animate`, `emil-design-eng`, `apple-design`, `animation-vocabulary` — микро-взаимодействия.
-- `gsap-*` (core, timeline, scrolltrigger, plugins, react, frameworks, utils, performance) — анимации при прокрутке и сложные сцены.
-- `vercel-react-view-transitions` — переходы между страницами.
+- `gsap-*` (core, timeline, scrolltrigger, plugins, utils, performance) — анимации при прокрутке и сложные сцены.
+- Переходы между страницами: View Transitions API в CSS/JS; для React — `/vercel-react-view-transitions`.
 - `find-animation-opportunities`, `animation-performance` — где добавить движение и как не тормозить.
 
 ## 4. Проверка (обязательно)

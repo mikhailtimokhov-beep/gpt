@@ -1,0 +1,5 @@
+## 短动图预览 GIF
+
+需要在聊天或文档中展示已审视频的短动作时，运行 `runtime_preflight.py analyze --profile gif_preview --output work/runtime_preflight.json --strict`，再运行 `gif_preview.py render output/master.mp4 --start 5 --duration 3 --width 480 --fps 12 --output output/preview.gif --receipt verify/gif_preview.json`。摘录限 10 秒、宽度 64–640 偶数像素、5–20 fps 和 20 MiB；FFmpeg 在同次任务中生成全片调色板并导出无声 GIF。`gif_preview.py verify verify/gif_preview.json` 重查源片/GIF 哈希、帧数、尺寸、时长和完整解码。交付前按真实展示尺寸看完整循环，确认动作起止、字幕可读性和色带；GIF 不含声音，视频正式发布仍用已审 MP4。
+
+用户提供有序照片要制作回忆、旅行或产品图集短片时，先运行 `runtime_preflight.py analyze --profile photo_montage --output work/runtime_preflight.json --strict`，再运行 `photo_montage.py render assets/01.jpg assets/02.jpg assets/03.jpg --music assets/music.wav --each 1 --transition 0.3 --zoom 1.08 --output output/montage.mp4 --receipt verify/photo_montage.json`，最后运行 `photo_montage.py verify verify/photo_montage.json`。传入路径顺序就是播放顺序；默认普通叠化，明确需要闪白效果时加 `--effect fadewhite`。脚本将照片等比放大铺满画布并居中裁切，默认 1080×1920/30 fps；细节、文字或人物靠边的照片应先逐张检查构图。收据核对照片、音乐、输出哈希、精确帧数、时长和完整解码；`ready_for_human_review` 表示仍需正常速度看听全片，闪白效果还需运行 `flash_safety_qa.py` 复核。素材若由内置生图工具生成，按图像与视频工作流先处理最终位图，再用于此脚本。

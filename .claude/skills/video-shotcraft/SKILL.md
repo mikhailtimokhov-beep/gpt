@@ -1,6 +1,7 @@
 ---
 name: video-shotcraft
-description: Create cinematic product videos from frontend projects or webpages with Remotion, real page captures, shot cards, the Ink Press template, beat sync and sound design. Use for full product promos, reproducing Ink Press, single shot-card effects, or finding, adding, replacing and aligning sound effects in an existing product video or shot, including candidate-only SFX searches. 用真实页面、镜头卡与 Ink Press 模板制作产品宣传片；用户要求用 video-shotcraft 做视频、复刻模板、制作单镜头，或给已完成的产品片/镜头找音效候选、加音效、换音效、对齐声音时使用。
+description: "Cinematic product promo videos from a website or app with Remotion, shot cards and sound design. Invoke with /video-shotcraft."
+disable-model-invocation: true
 ---
 
 # video-shotcraft：电影感产品视频制作
