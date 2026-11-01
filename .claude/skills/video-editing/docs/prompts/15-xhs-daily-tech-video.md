@@ -1,0 +1,1296 @@
+# 15 — 小红书每日科技短视频（完整 V3 流水线）
+
+> 这是 AI/创业/效率方向 daily 短视频的提示词模板，跑完一遍输出可发布的 3:4 / 9:16 多版本视频 + 标题 + 正文 + 标签。
+
+## 使用场景
+
+你有：
+- 一段 5-15 分钟的口播音频（mp3/m4a/wav）
+- 若干段无声素材（DJI/手机/屏幕录制）
+- 一个大致的主题方向
+
+你要 AI 帮你完成：
+1. 转写口播 + 标记口误/填充词/长停顿
+2. 让 LLM 重组成符合小红书爆款公式的 5 段式结构
+3. 自动选 B-roll、加章节卡、贴贴纸；音乐主导内容可从 BGM 先生成节拍剪辑骨架
+4. 用 Heavy 字体烧字幕（永远不漏内部 token 到画面）
+5. 跑响度规范化 + atempo 加速
+6. 导出 3 个平台版本（小红书 3:4、抖音 9:16、视频号 ≤60s）
+7. 生成标题 + 发布正文 + 标签 + 发布时段建议
+
+## 提示词模板
+
+把下面这段交给 GPT-5.6 / Claude 等支持长流程工具调用的 Agent，替换 `<...>` 占位：
+
+```
+我是 BestAI Labs 的 Jay，正在做 day<NN> 小红书短视频，主题是 <主题描述>。
+口播素材在 ~/Movies/xiaohongshu/day<NN>/origin/<voice>.mp3，无声视频素材在
+同目录其他 .mp4 文件里。请用 video-editing skill V3 流水线完成这条视频。
+
+跑这套：
+
+0. # 可选：先把这次自然语言需求固化成本地 runbook：
+   python3 scripts/edit_brief_plan.py \
+     --brief "day<NN> 小红书短视频，主题 <主题描述>，口播 + 无声素材，重组故事、自动丰富、渲染、多平台导出和发布文案" \
+     --project-dir . \
+     --output work/edit_brief_plan.json \
+     --markdown work/edit_brief_plan.md \
+     --platform xhs
+   # 详见 docs/prompts/64-edit-brief-plan.md
+
+0p. # 必跑：按本次实际工作流检查本机命令、编码器和 FFmpeg filters：
+    python3 scripts/runtime_preflight.py analyze \
+      --profile core_edit \
+      --profile captions \
+      --profile qa \
+      --output work/runtime_preflight.json \
+      --markdown work/runtime_preflight.md \
+      --strict
+    # 用正放倒放循环、视频放大/补帧、HDR、防抖、交错素材或 Remotion 时分别追加
+    # ping_pong_loop / video_enhancement / hdr_sdr / stabilization / interlace / remotion。
+    # missing 或 unknown 都停止；修好环境后重新 analyze，不手改 JSON。
+    # 详见 docs/prompts/115-runtime-preflight.md
+
+0i. # 条件 gate：旧广播/DV/DVD 素材有梳齿、TFF/BFF、1080i 或 telecine 线索时：
+    python3 scripts/interlace_conform.py analyze origin/<interlaced-source>.mkv \
+      --project-dir . \
+      --output work/interlace_analysis.json \
+      --markdown work/interlace_analysis.md
+    # progressive 保留原片；telecine candidate 停止并走 IVTC；uncertain 先逐帧复核。
+    # 确认真实交错后，以 plan --reviewed-by --note 明确决定、frame/field mode 和 parity，
+    # 再 apply 到 work/<source>-progressive.mp4，完整 1× 看 A/B，五项 pass 后 confirm/verify。
+    # 后续都使用逐行工作副本；详见 docs/prompts/116-interlace-conform.md
+
+0v. # 条件 gate：手机/录屏源是 VFR，或剪切后音画逐渐漂移时，先做 CFR 工作副本：
+    python3 scripts/frame_rate_conform.py plan origin/<phone-or-screen>.mp4 \
+      --fps 30 \
+      --delivery work/<source>-cfr.mp4 \
+      --project-dir . \
+      --output work/frame_rate_conform_plan.json \
+      --markdown work/frame_rate_conform_plan.md
+    python3 scripts/frame_rate_conform.py apply work/frame_rate_conform_plan.json
+    python3 scripts/frame_rate_conform.py verify work/frame_rate_conform_plan.json --strict
+    # 后续转写、切段、字幕和渲染都用 work/<source>-cfr.mp4；完整 1× 看 pan、滚动、口型和结尾。
+    # 目标 30/60 fps 按素材运动和发布平台选择；详见 docs/prompts/112-frame-rate-conform.md
+
+0l. # 条件 gate：短背景/环境片需要循环到指定次数或固定时长时：
+    python3 scripts/loop_fill.py plan origin/<loop-source>.mp4 \
+      --duration 00:30 --audio-mode drop \
+      --delivery work/<source>-loop-fill.mp4 \
+      --seam-proof verify/<source>-loop-seam.mp4 \
+      --project-dir . \
+      --output work/loop_fill_plan.json \
+      --markdown work/loop_fill_plan.md
+    python3 scripts/loop_fill.py apply work/loop_fill_plan.json
+    # 正常速度看完 seam proof 与完整 delivery，五项复核通过后 confirm，再 verify --strict。
+    # hard repeat 不会自动修平首尾；VFR 先 conform，详见 docs/prompts/117-loop-fill.md
+
+0l2. # 条件 gate：手势、产品旋转或生成片动作要做正放/倒放往返循环时：
+    python3 scripts/ping_pong_loop.py plan origin/<motion-source>.mp4 \
+      --start 1.2 --end 2.05 --cycles 4 \
+      --delivery work/<source>-ping-pong.mp4 \
+      --turnaround-proof verify/<source>-turnaround.mp4 \
+      --loop-seam-proof verify/<source>-loop-seam.mp4 \
+      --project-dir . \
+      --output work/ping_pong_loop_plan.json \
+      --markdown work/ping_pong_loop_plan.md
+    python3 scripts/ping_pong_loop.py apply work/ping_pong_loop_plan.json
+    # 正常速度看完折返点、循环点和完整 delivery，五项复核通过后 confirm，再 verify --strict。
+    # 源音频固定丢弃；选区尽量短，内存预估超过上限会在渲染前停止。
+    # 详见 docs/prompts/128-ping-pong-loop.md
+
+0s. # 可选：同一个人/品牌需要跨项目维持风格时，先建可移植剪辑风格档案：
+    python3 scripts/edit_style_profile.py template \
+      --output work/edit_style_profile_spec.json
+    # 把占位值改成已确认的创意方向、节奏、渲染/文案默认值和 approval basis 后：
+    python3 scripts/edit_style_profile.py create \
+      --spec work/edit_style_profile_spec.json \
+      --output work/edit_style_profile.json \
+      --markdown work/edit_style_profile.md \
+      --strict
+    python3 scripts/edit_style_profile.py verify \
+      --profile work/edit_style_profile.json \
+      --strict
+    # 下方第 6/12 步仅在生成了该文件时传 --style-profile。
+    # 它只填充缺失默认值，不覆盖项目 config/CLI；digest 不是签名或权利证明。
+    # 详见 docs/prompts/98-edit-style-profile.md
+
+0a. # 条件 gate：涉及外部上传、重排/删除、付费生成、声音克隆、真人/未成年人/公众人物/品牌/IP 或发布时，先授权：
+    # 先按 docs/prompts/97-production-authorization.md 写 work/production_authorization_scope.json，
+    # 命名确切素材、动作、用途、provider/surface、cost/quota 和 rights subject。
+    python3 scripts/production_authorization.py prepare \
+      --project-dir . \
+      --scope work/production_authorization_scope.json \
+      --output work/production_authorization_request.json \
+      --markdown work/production_authorization_request.md \
+      --response-template work/production_authorization_response.json \
+      --strict
+    # 实际复核者逐项填写 approve/reject、note、rights basis 和 evidence_note 后：
+    python3 scripts/production_authorization.py audit \
+      --project-dir . \
+      --request work/production_authorization_request.json \
+      --response work/production_authorization_response.json \
+      --output work/production_authorization.json \
+      --markdown work/production_authorization.md \
+      --strict
+    python3 scripts/production_authorization.py verify \
+      --project-dir . \
+      --report work/production_authorization.json \
+      --strict
+    # status 不是 ready 就停止；聊天里的沉默、文件路径或一次旧同意不能代替 exact response。
+    # 该 JSON 是本地自报记录，不是身份认证、数字签名、真实授权文件或法律意见。
+
+0b. # 可选：如果同一访谈/播客/活动由两台以上设备录制，转写和选片前先统一时间线：
+    python3 scripts/multicam_sync.py \
+      --reference-media origin/<cam-a>.mp4 \
+      --angle origin/<cam-b>.mp4 \
+      --angle origin/<cam-c>.mp4 \
+      --output work/multicam_sync_plan.json \
+      --markdown work/multicam_sync_plan.md \
+      --preview-output output/verify/multicam_sync_preview.mp4 \
+      --apply-preview \
+      --strict
+    # 先看 offset/confidence/有效音轨/common overlap/pairwise divergence，再播放拍手、口型或屏幕动作。
+    # 原片不改；30 分钟以上还要复核头/中/尾，因为 V1 不测相机 clock drift。
+    # 详见 docs/prompts/76-multicam-sync.md
+
+0b2. # 可选：同步通过后，如果每位出镜者都有能代表本人发言的独立/近讲音轨，生成自动导播草稿：
+    python3 scripts/multicam_switch.py plan \
+      --sync-plan work/multicam_sync_plan.json \
+      --speaker <angle-id-a>=<speaker-a> \
+      --speaker <angle-id-b>=<speaker-b> \
+      --program-audio <mixed-master-angle-id> \
+      --delivery output/multicam_switch_draft.mp4 \
+      --output work/multicam_switch_plan.json \
+      --markdown work/multicam_switch_plan.md \
+      --strict
+    python3 scripts/multicam_switch.py apply work/multicam_switch_plan.json
+    # 带声完整播放草稿；共享混音、高相关包络、掌声/笑声/串音会误导能量选择，不能跳过人工复核。
+    python3 scripts/multicam_switch.py confirm work/multicam_switch_plan.json \
+      --reviewer "<reviewer-label>" \
+      --speaker-selection pass --cut-timing pass --sync pass --audio-continuity pass
+    python3 scripts/multicam_switch.py verify work/multicam_switch_plan.json --strict
+    # 详见 docs/prompts/127-multicam-switch.md
+
+0c. # 可选：手持素材有不想要的抖动时，先保留原片并生成稳定工作副本：
+    python3 scripts/video_stabilization.py doctor
+    python3 scripts/video_stabilization.py plan origin/<handheld>.mp4 \
+      --decision stabilize \
+      --reviewed-by "<reviewer-label>" \
+      --note "<为什么这是需要去掉的抖动，而不是有意运镜>" \
+      --output work/video_stabilization_plan.json \
+      --markdown work/video_stabilization_plan.md
+    python3 scripts/video_stabilization.py apply work/video_stabilization_plan.json \
+      --output work/<handheld>-stabilized.mp4 \
+      --comparison verify/<handheld>-stabilization-compare.mp4 \
+      --markdown work/video_stabilization_plan.md
+    # 用 1× 看完整左原片/右稳定版；可接受后才 confirm：
+    python3 scripts/video_stabilization.py confirm work/video_stabilization_plan.json \
+      --reviewed-by "<reviewer-label>" \
+      --note "完整 A/B 已看；人物、边缘和有意摇摄均可接受" \
+      --markdown work/video_stabilization_plan.md
+    # 后续用 work/<handheld>-stabilized.mp4，不覆盖 origin；详见 docs/prompts/84-video-stabilization.md
+
+0d. # 可选：素材在绿幕/蓝幕前拍摄，先看代表帧和 matte，再完整换背景：
+    python3 scripts/chroma_key.py prepare \
+      --project-dir . \
+      --foreground origin/<presenter-green>.mp4 \
+      --background origin/<background>.png \
+      --output-video output/<presenter-composite>.mp4 \
+      --preview-dir verify/chroma_key \
+      --report work/chroma_key.json \
+      --markdown work/chroma_key.md
+    # 打开早/中/晚 composite + matte；只改一项 similarity/blend/despill 后再预览。
+    python3 scripts/chroma_key.py review \
+      --report work/chroma_key.json \
+      --reviewer "<reviewer-label>" \
+      --note "头发、手、衣物、主体缺口、溢色和背景匹配已逐帧复核" \
+      --edge-quality pass \
+      --subject-integrity pass \
+      --spill-control pass \
+      --background-fit pass \
+      --markdown work/chroma_key.md
+    python3 scripts/chroma_key.py apply \
+      --report work/chroma_key.json \
+      --markdown work/chroma_key.md \
+      --strict
+    python3 scripts/chroma_key.py verify --project-dir . --report work/chroma_key.json --strict
+    # 后续把 output/<presenter-composite>.mp4 当新 source；完整 1× 看完。详见 docs/prompts/99-chroma-key.md
+
+1. python3 scripts/transcribe.py origin/<voice>.mp3 \
+     --engine auto --model auto --language zh --word-timestamps --detect-fillers \
+     > work/transcript.json
+
+1a. # 可选：专业术语/中英混说较多时，先做全篇上下文语义审校；模型建议不会直接应用：
+    python3 scripts/semantic_transcript_review.py prepare \
+      --transcript work/transcript.json \
+      --output work/semantic_review_request.json \
+      --markdown work/semantic_review_request.md
+    # 让当前 Agent/模型按 request 的 response_template 写 work/semantic_review_response.json。
+    python3 scripts/semantic_transcript_review.py audit \
+      --transcript work/transcript.json \
+      --response work/semantic_review_response.json \
+      --output work/transcript_semantic_review.json \
+      --markdown work/transcript_semantic_review.md \
+      --strict
+    # 首次 strict 返回 2 代表仍需人工 choices；逐项 approve/reject 后应用：
+    python3 scripts/semantic_transcript_review.py apply \
+      --transcript work/transcript.json \
+      --audit work/transcript_semantic_review.json \
+      --choices work/semantic_review_choices.json \
+      --output work/transcript_semantic_reviewed.json \
+      --markdown work/transcript_semantic_review.md
+    # 详见 docs/prompts/79-semantic-transcript-review.md
+
+1b. # 生成零上传的同步媒体校稿页；人工保存 review.txt 后回写 reviewed transcript：
+    python3 scripts/transcript_review.py html \
+      --transcript work/transcript_semantic_reviewed.json \
+      --video origin/<voice>.mp3 \
+      --corrections work/corrections.json \
+      --output work/transcript_review.html \
+      --max-cps 20
+    # 如果跳过了 1a，把上面和下面的 transcript_semantic_reviewed.json 改回 transcript.json。
+    # 打开 work/transcript_review.html，点击时间码试听、修正文字、保存 work/transcript_review.txt。
+    python3 scripts/transcript_review.py apply \
+      --transcript work/transcript_semantic_reviewed.json \
+      --review work/transcript_review.txt \
+      --output work/transcript_reviewed.json
+    # 详见 docs/prompts/36-transcript-review.md
+
+1c. # 可选：先生成多个前三秒 hook 角度，选一个再进入清稿：
+    python3 scripts/hook_variants.py \
+      --transcript work/transcript_reviewed.json \
+      --topic "<主题描述>" \
+      --persona "BestAI Labs 创始人 / Mac mini M1 / AI + 小公司" \
+      --platform xhs \
+      --output work/hook_variants.json \
+      --markdown work/hook_variants.md \
+      --strict
+    # 打开 work/hook_variants.md，选中的 hook 文本放进下一步 LLM prompt。
+    # 详见 docs/prompts/62-hook-variants.md
+
+1d. # 可选：如果已经有确认的成片稿，且同一句录了多个 take，就按稿装配原话：
+    python3 scripts/script_alignment.py \
+      --target-script work/target_script.md \
+      --transcripts-dir work/takes \
+      --output work/script_alignment.json \
+      --markdown work/script_alignment.md \
+      --render-config work/render_config.json \
+      --clean-script work/clean_script.md \
+      --strict
+    # 低分/同分候选先看听素材，把 candidate id 写进 choices JSON，再加 --choices 重跑。
+    # summary.blocking=0 后可跳过下面 2-3 的自由重写，直接进入 enrich / preflight / render。
+    # 详见 docs/prompts/78-script-alignment.md
+
+2. python3 scripts/rewrite_script.py \
+     --transcript work/transcript_reviewed.json \
+     --structure pain_solve \
+     --hook-template auto \
+     --max-duration 150 \
+     --persona "BestAI Labs 创始人 / Mac mini M1 / AI + 小公司" \
+     --emit-prompt > work/llm_prompt.md
+
+   (我会把 work/llm_prompt.md 贴给你；你输出 JSON，按要求只输出 JSON 不要解释)
+
+3. （你输出 JSON 后）保存到 work/llm.json，然后：
+   python3 scripts/rewrite_script.py \
+     --transcript work/transcript_reviewed.json \
+     --llm-output work/llm.json \
+     --output work/clean_script.md
+
+4. python3 scripts/auto_enrich.py \
+     --transcript work/transcript_reviewed.json \
+     --clean-script work/clean_script.md \
+     --bgm origin/<bgm>.mp3 \
+     --output work/enrich_plan.json
+
+4a. # 仅音乐视频 / 产品 montage / 明确要求卡点时：先生成可审计时间槽，不自动选素材或渲染
+    python3 scripts/beat_sync.py \
+      --bgm origin/<bgm>.mp3 \
+      --generate-plan \
+      --duration <成片秒数> \
+      --beats-per-cut 4 \
+      --min-segment 0.75 \
+      --max-segment 3 \
+      --output work/beat_edit_plan.json \
+      --markdown work/beat_edit_plan.md
+    # detection.method=fallback_grid 时必须听音乐逐切点复核；确认后再把素材映射进 render_config。
+
+4aa. # 可选：动作 / 产品 reveal 有明确 impact frame 时，先把局部慢动作做成新的 source：
+     python3 scripts/speed_ramp.py plan origin/<action>.mp4 \
+       --ramp <ramp_start>,<impact>,1,0.25,s_curve \
+       --hold <impact>,<hold_end>,0.25 \
+       --ramp <hold_end>,<ramp_end>,0.25,1,ease \
+       --interpolate-fps 120 \
+       --output work/speed_ramp_plan.json \
+       --markdown work/speed_ramp_plan.md
+     python3 scripts/speed_ramp.py verify work/speed_ramp_plan.json --strict
+     python3 scripts/speed_ramp.py apply work/speed_ramp_plan.json \
+       --output work/action-speed-ramped.mp4 \
+       --receipt work/speed_ramp_apply.json
+     # 用新 MP4 进入 render_config；1×带音频复核 impact / 插值伪影后再继续，旧字幕时间码不可复用。
+     # 详见 docs/prompts/83-speed-ramp.md
+
+4ab. # 可选：表情峰值 / 动作落点 / 产品揭晓要短暂定格强调，但不改变音频和总时长：
+     python3 scripts/freeze_punch.py plan origin/<action>.mp4 \
+       --freeze <impact_time>,<freeze_duration>,1.08,0.5,0.42 \
+       --delivery work/action-freeze-punched.mp4 \
+       --output work/freeze_punch_plan.json \
+       --markdown work/freeze_punch_plan.md
+     # 阅读 Markdown 后 apply；pending blocker 是预期状态，apply 会先校验 plan/source。
+     python3 scripts/freeze_punch.py apply work/freeze_punch_plan.json
+     python3 scripts/freeze_punch.py verify work/freeze_punch_plan.json --strict
+     # 用新 MP4 进入 render_config；1×带音频检查入口/出口、冻嘴、动作跳跃、裁切和放大软化。
+     # 本操作不漂移字幕/章节时间码，但旧 QA / approval receipt / publish package 必须重做。
+     # 详见 docs/prompts/101-freeze-punch.md
+
+4b. # 如果 enrich_plan.json 的 imagegen[] 非空 → 用 Codex 内置 imagegen 生图：
+    # 生图优先使用 Codex 内置 `image_gen` 工具，即 OpenAI GPT Image 2（`gpt-image-2`）。
+    # 把每条 prompt_en 喂给 imagegen，1024x1536 high quality，存到 work/imagegen/
+    # （不需要 OPENAI_API_KEY；Codex 自动路由到 gpt-image-2）
+    # 详见 docs/prompts/19-imagegen.md
+
+4c. # 生成分镜 shot cards，先审查生成路由和连续性，再决定是否消耗视频生成额度：
+    python3 scripts/storyboard_plan.py \
+      --transcript work/transcript_reviewed.json \
+      --clean-script work/clean_script.md \
+      --output work/storyboard_plan.json \
+      --markdown work/storyboard_plan.md \
+      --max-shots 8 \
+      --target-aspect 9:16
+    # codex_imagegen 用 Codex 内置 image_gen；dreamina_video 只是建议，提交 Dreamina/即梦前先确认 credits。
+    # 详见 docs/prompts/24-storyboard-plan.md
+
+4c-1. # 可选：每镜已有一张已审静帧时，先按真实时长播放完整 animatic：
+    python3 scripts/storyboard_animatic.py plan \
+      --project-dir . \
+      --storyboard work/storyboard_plan.json \
+      --panel shot_001=work/storyboard/shot_001.png \
+      --panel shot_002=work/storyboard/shot_002.png \
+      --delivery verify/storyboard_animatic.mp4 \
+      --output work/storyboard_animatic.json \
+      --markdown work/storyboard_animatic.md
+    python3 scripts/storyboard_animatic.py apply work/storyboard_animatic.json
+    # 有完整旁白时可在 plan 加 --audio work/narration.wav。完整 1× 播放后逐项 confirm，再 verify --strict。
+    # 详见 docs/prompts/121-storyboard-animatic.md。
+
+4c-2. # 两条以上生成镜头：在最终 prompt 前设计并审核每个相邻镜头的接力与剪辑边界：
+    python3 scripts/sequence_handoff.py prepare \
+      --project-dir . \
+      --storyboard work/storyboard_plan.json \
+      --output work/sequence_handoff_request.json \
+      --markdown work/sequence_handoff_request.md \
+      --response-template work/sequence_handoff_response.json \
+      --strict
+    # 逐条填写 carrier/offer/receive、edit type、180° 轴、屏幕方向、音频桥、头尾 handle、风险与 fallback。
+    python3 scripts/sequence_handoff.py audit \
+      --project-dir . \
+      --request work/sequence_handoff_request.json \
+      --response work/sequence_handoff_response.json \
+      --output work/sequence_handoff.json \
+      --markdown work/sequence_handoff.md \
+      --strict
+    python3 scripts/sequence_handoff.py verify \
+      --project-dir . \
+      --report work/sequence_handoff.json \
+      --strict
+    # 详见 docs/prompts/120-sequence-handoff.md；单镜头无需运行。
+
+4c-3. # 如果要用生成视频 provider，先核验具体 UI/API surface 的当前能力：
+    python3 scripts/provider_capability.py verify \
+      --bundle work/provider_capabilities.json \
+      --max-age-days 30 \
+      --output work/provider_capabilities_verification.json \
+      --markdown work/provider_capabilities_verification.md \
+      --strict
+    # profile 要记录 exact provider/surface/model、verified_at、来源、modes、画幅、时长、分辨率和参考上限。
+    # 不要把一个入口的参数带到另一个入口；详见 docs/prompts/96-provider-capability.md。
+
+4d. # 可选：把分镜转成 Dreamina/Veo/LTX/Wan/Sora 视频生成提示词包：
+    python3 scripts/video_prompt_pack.py \
+      --project-dir . \
+      --storyboard-plan work/storyboard_plan.json \
+      --sequence-handoff work/sequence_handoff.json \
+      --asset-root work \
+      --style-reference work/imagegen/style-key.png \
+      --capability-profile work/provider_capabilities.json \
+      --require-capability-profile \
+      --resolution 720p \
+      --output work/video_prompt_pack.json \
+      --markdown work/video_prompt_pack.md \
+      --strict
+    # --strict 会在视频生成还没确认 credits 时返回 2；审批后再加 --approved。
+    # style-key.png 可按 video_prompt_pack.md 的 Character / Style Reference prompt 用 Codex image_gen 生成。
+    # 详见 docs/prompts/45-video-prompt-pack.md
+
+4e. # paid provider 提交前，检查 image-to-video 首帧和共享 style key：
+    python3 scripts/reference_frame_preflight.py \
+      --prompt-pack work/video_prompt_pack.json \
+      --output work/reference_frame_preflight.json \
+      --markdown work/reference_frame_preflight.md \
+      --require-style-reference \
+      --strict
+    # blocker 未清零时不要提交生成任务；本步骤不联网、不消耗 credits。
+    # 详见 docs/prompts/71-reference-frame-preflight.md
+
+4e-2. # 如果使用图片 + 视频 + 音频多模态 reference，生成逐镜清单并做完整预检：
+    python3 scripts/generation_reference_preflight.py template \
+      --project-dir . \
+      --prompt-pack work/video_prompt_pack.json \
+      --output work/generation_references.json
+    # 填写每个 reference 的 kind/path/role/exclude，顺序就是各类型的 @ImageN/@VideoN/@AudioN。
+    python3 scripts/generation_reference_preflight.py analyze \
+      --project-dir . \
+      --prompt-pack work/video_prompt_pack.json \
+      --references work/generation_references.json \
+      --capability-profile work/provider_capabilities.json \
+      --output work/generation_reference_preflight.json \
+      --markdown work/generation_reference_preflight.md \
+      --strict
+    # 只使用 ready 报告中的有序素材和 provider_prompt；详见 docs/prompts/122-generation-reference-preflight.md。
+
+4f. # 如果已经提交 Dreamina/即梦或其他异步生成任务，保存 submit_id/task id 并跟踪下载：
+    python3 scripts/generation_task_log.py add \
+      --log work/generation_tasks.json \
+      --provider dreamina \
+      --task-id "<submit_id>" \
+      --shot-id shot_002 \
+      --expected-path work/generated_video/shot_002.mp4 \
+      --status submitted \
+      --markdown work/generation_tasks.md \
+      --strict
+    # 任务完成并下载后，用 update 写入 asset-path；未完成/未下载会阻塞 pipeline_manifest。
+    # 详见 docs/prompts/46-generation-task-log.md
+
+4g. # 把分镜转成素材清单，先审查哪些素材 ready、需要生成、需要审批或要补 B-roll：
+    python3 scripts/storyboard_assets.py \
+      --storyboard-plan work/storyboard_plan.json \
+      --asset-root work \
+      --output work/storyboard_assets.json \
+      --markdown work/storyboard_assets.md
+    # 渲染前可加 --strict；如果有 needs_approval，提交 Dreamina/即梦前必须确认 credits。
+    # 详见 docs/prompts/25-storyboard-assets.md
+
+4h. # 生成视频下载且 storyboard_assets 刷新为 ready 后，组装前做 source-bound 视觉复核：
+    python3 scripts/generated_clip_review.py prepare \
+      --project-dir . \
+      --asset-manifest work/storyboard_assets.json \
+      --contact-sheet-dir verify/generated_clips \
+      --output work/generated_clip_review_request.json \
+      --markdown work/generated_clip_review_request.md \
+      --response-template work/generated_clip_review_response.json
+    # 完整看过 1×带声、0.25×、静音和 audio-only 后填 response，再运行 audit --strict / verify --strict。
+    # hard fail 或需重生不能靠转场掩盖；详见 docs/prompts/89-generated-clip-review.md
+
+4h-1. # 逐片视觉 review 后，检查短生成片是否有 contact sheet 看不出的冻结开头/延迟动作：
+    python3 scripts/generated_motion_window.py analyze \
+      work/generated_video/<clip_id>.mp4 \
+      --project-dir . \
+      --output work/generated_motion_window/<clip_id>.json \
+      --markdown work/generated_motion_window/<clip_id>.md
+    # 完整 1× 看源片后 confirm --decision trim|keep|reject；trim 再 apply 到新的 <clip_id>-active.mp4。
+    # 新 working copy 要重跑 generated-clip review；详见 docs/prompts/102-generated-motion-window.md
+
+4h-2. # 如果 provider 对已有视频执行了“只换背景/服装/包装/局部 VFX”等 edit mode，做前后范围复核：
+    python3 scripts/scoped_video_edit_review.py prepare \
+      --project-dir . \
+      --source origin/<source>.mp4 \
+      --edited work/<scoped-edit>.mp4 \
+      --change-category wardrobe \
+      --change "change only the jacket from blue to red" \
+      --preserve subject_identity \
+      --preserve performance_motion \
+      --preserve camera_motion \
+      --preserve framing_composition \
+      --preserve source_audio \
+      --evidence-dir verify/scoped_video_edit \
+      --output work/scoped_video_edit_review_request.json \
+      --markdown work/scoped_video_edit_review_request.md \
+      --response-template work/scoped_video_edit_review_response.json
+    # 分别完整 1× 看 source/edited，再看左右并排 preview 并切换两条音轨；逐项填 target/protections。
+    # audit --strict 与 verify --strict 都通过后才组装；失败需写 scoped repair_action。
+    # 每次 provider call 只改一个方向；脚本不提交 provider、不上传、不消耗 credits。详见 docs/prompts/100-scoped-video-edit-review.md
+
+4h-3. # 有两条以上生成视频时，逐片通过后再复核每个相邻边界：
+    python3 scripts/generated_sequence_review.py prepare \
+      --project-dir . \
+      --clip-review work/generated_clip_review.json \
+      --storyboard-plan work/storyboard_plan.json \
+      --evidence-dir verify/generated_sequence \
+      --output work/generated_sequence_review_request.json \
+      --markdown work/generated_sequence_review_request.md \
+      --response-template work/generated_sequence_review_response.json
+    # 逐个看无声 1× boundary preview 和尾帧/首帧并排图，再填写六项 continuity checks。
+    # mismatch 必须 fail 并给 repair_action；详见 docs/prompts/91-generated-sequence-review.md
+
+4i. # 如果输入是完整口播视频、访谈或录屏，且停顿很多，可先生成去停顿 cut list：
+    python3 scripts/jump_cut.py origin/<talking_video>.mp4 \
+      --dry-run \
+      --cut-list work/jumpcut.json \
+      --strict
+    python3 scripts/timeline_view.py origin/<talking_video>.mp4 \
+      --cut-list work/jumpcut.json \
+      --output-dir output/verify/jumpcut \
+      --limit 12
+    # 先检查 work/jumpcut.json 的 removed_segments，确认没有误切人声；
+    # 再查看 output/verify/jumpcut/*.png 的 filmstrip + waveform；
+    # 需要独立去停顿成片时再加 --output output/day<NN>_jumpcut.mp4；
+    # 默认 --fade-duration 0.03 会降低切点爆音，只有需要硬切原声时才设为 0。
+    # 默认最多删除源时长的 20%；超限会 blocked，审查后才调高 --max-removal-ratio 或加 --allow-over-budget。
+    # 详见 docs/prompts/21-jump-cut.md 和 docs/prompts/22-timeline-view.md
+
+4j. # 可选：停顿里可能仍有表情/手势/屏幕操作时，用静音 AND 静帧的保守模式代替 4i：
+    python3 scripts/multimodal_dead_air.py plan origin/<talking_video>.mp4 \
+      --delivery work/<talking_video>-dead-air-tight.mp4 \
+      --output work/multimodal_dead_air_plan.json \
+      --markdown work/multimodal_dead_air_plan.md \
+      --strict
+    python3 scripts/multimodal_dead_air.py verify work/multimodal_dead_air_plan.json --strict
+    DEAD_AIR_CUT_COUNT="$(python3 -c 'import json; print(len(json.load(open("work/multimodal_dead_air_plan.json"))["removed_segments"]))')"
+    python3 scripts/timeline_view.py origin/<talking_video>.mp4 \
+      --cut-list work/multimodal_dead_air_plan.json \
+      --output-dir verify/dead-air-cuts \
+      --limit "$DEAD_AIR_CUT_COUNT"
+    # 默认静帧要覆盖静音至少 60%，只删交集；逐段复核后才 apply：
+    python3 scripts/multimodal_dead_air.py apply work/multimodal_dead_air_plan.json \
+      --markdown work/multimodal_dead_air_plan.md
+    # DEAD_AIR_CUT_COUNT=0 时停止并保留原片；否则完整 1× 看完工作副本并重跑 render_qa，再把它作为后续 source；详见 docs/prompts/88-multimodal-dead-air.md
+
+5. python3 scripts/content_guard.py \
+     --script work/clean_script.md \
+     --title "<候选标题>" \
+     --strict
+
+   (任何 HARD violation 必须先去掉再继续；SOFT 警告需要权衡)
+
+5a. # 如果视频包含新闻、数据、产品事实、来源页或截图证据，先做 source receipts：
+    python3 scripts/source_receipts.py \
+      --claims work/source_claims.json \
+      --project-dir . \
+      --output work/source_receipts.json \
+      --markdown work/source_receipts.md \
+      --html work/source_receipts.html \
+      --require-primary-source \
+      --strict
+   # source_claims.json 里的 screenshot/source_file 路径相对该 JSON 所在目录；
+   # 纯观点类视频可跳过，事实型视频发布前建议在 pipeline_manifest 里 --require source_receipts。
+   # 详见 docs/prompts/58-source-receipts.md
+
+5aa. # 可选：如果 render_config / enrich_plan 已经过审，后续调整需要可撤销、可重做：
+     python3 scripts/edit_revision.py prepare \
+       --project-dir . \
+       --artifact work/render_config.json \
+       --artifact work/enrich_plan.json \
+       --depends-on work/transcript_reviewed.json \
+       --title "<本次剪辑修订>" \
+       --reason "<审片依据>" \
+       --output work/edit_revision_proposal.json
+     # 只改 proposal 的 proposed_content；再依次 audit、独立 approval、apply。
+     # audit --strict 在 pending_approval 时退出 2 是预期；apply 后可用 status/undo/redo。
+     # 详见 docs/prompts/80-edit-revision.md
+
+5aaa. # 可选：把已经通过预检的 render_config 存成无路径配方，供同栏目换素材复用：
+      python3 scripts/edit_recipe.py export \
+        --config work/render_config.json \
+        --name "<series-name>" \
+        --description "<固定节奏/字幕/BGM/overlay 结构>" \
+        --output "work/recipes/<series-name>_edit_recipe.json" \
+        --markdown "work/recipes/<series-name>_edit_recipe.md"
+      # 新项目先看 Markdown slot 表，再用 replay --bind SLOT=PATH（每槽一次）生成新 render_config。
+      # replay 会记录 binding hash 并再次 preflight；成功后仍必须渲染并人工审片。
+      # 详见 docs/prompts/82-edit-recipe.md
+
+5b. python3 scripts/edit_preflight.py \
+      --config work/render_config.json \
+      --enrich-plan work/enrich_plan.json \
+      --output work/edit_preflight.json \
+      --markdown work/edit_preflight.md \
+      --strict
+
+   (缺文件、空剪辑、非法时间段、overlay 超出时间线或像素坐标缺尺寸时，先修 artifact 再渲染)
+
+5c. # 每个平台分别检查字幕、PIP、CTA、章节卡和点击 marker 是否会被平台 UI 遮挡：
+     python3 scripts/platform_safe_area_qa.py \
+       --config work/render_config.json \
+       --enrich-plan work/enrich_plan.json \
+       --platform xhs \
+       --output output/verify/day<NN>_xhs_platform_safe_area_qa.json \
+       --markdown output/verify/day<NN>_xhs_platform_safe_area_qa.md \
+       --guide output/verify/day<NN>_xhs_platform_safe_area_guide.svg \
+       --strict
+
+   (抖音/视频号派生版分别改用 --platform douyin / wxch；平台 UI 有变化时传 --safe-left/top/right/bottom 实测像素)
+
+5d. # 可选：明确需要“声音先行”或“画面先切、声音后走”时，逐边界试听后规划 J-cut/L-cut：
+     python3 scripts/audio_transition.py plan work/render_config.json \
+       --transition <after_clip>,<j_cut|l_cut>,<duration_seconds> \
+       --output work/audio_transition_plan.json \
+       --markdown work/audio_transition_plan.md
+
+   （没有足够源音频 handle 会直接阻塞；先用 `--primary-speed 1.0 --audio-transition-plan ...`
+   渲染 1× 审片版，耳机和手机逐边界确认无吞字/复读/click，再渲染最终速度。详见 docs/prompts/86-audio-transition.md。）
+
+5d-1. # 可选：已有最终独立旁白和 audio_cue_sheet.v1 时，把 SFX cue 落成一条可审母轨：
+      python3 scripts/audio_cue_mix.py plan \
+        --project-dir . \
+        --cue-sheet work/audio_cue_sheet.json \
+        --voice work/final_narration.wav \
+        --delivery work/audio_cue_mix.wav \
+        --synthesize-missing \
+        --output work/audio_cue_mix.json \
+        --markdown work/audio_cue_mix.md
+      python3 scripts/audio_cue_mix.py apply \
+        --plan work/audio_cue_mix.json \
+        --markdown work/audio_cue_mix.md
+      # 完整 1× 听完后 confirm 五项 review，再 verify --strict；详见 docs/prompts/123-audio-cue-mix.md。
+      # 该输出不含 BGM；音乐仍在最终 render 中走 narration-driven ducking，并重新做完整混音试听。
+
+5e. # 在完整编码前，用真实源片早/中/晚画面对比最终 ASS 字幕预设：
+     python3 scripts/subtitle_style_preview.py create \
+       --project-dir . \
+       --video origin/talking.mp4 \
+       --platform xhs \
+       --text "这句字幕要覆盖中英文和数字 2026" \
+       --preview-dir output/verify/subtitle_styles \
+       --output work/subtitle_style_preview.json \
+       --markdown work/subtitle_style_preview.md \
+       --require-selection
+
+     # 手机尺寸和全尺寸看完三套 JPEG 后：
+     python3 scripts/subtitle_style_preview.py select \
+       --report work/subtitle_style_preview.json \
+       --style <normal|minimal|bold_pop>
+     python3 scripts/subtitle_style_preview.py verify \
+       --report work/subtitle_style_preview.json \
+       --strict
+
+   （把选中的 style 传给第 6 步；源片、字体、ASS preset 或 JPEG 漂移都会使旧选择失效。
+   详见 docs/prompts/94-subtitle-style-preview.md。）
+
+6. python3 scripts/render_final.py \
+     --config work/render_config.json \
+     --style-profile work/edit_style_profile.json \
+     --enrich-plan work/enrich_plan.json \
+     --profile tech_pro \
+     --primary-speed 1.25 \
+     --bgm-ducking \
+     --subtitle-style <第 5e 步选中的 style> \
+     --output output/day<NN>_master.mp4
+
+   （如果 5d 生成了计划，渲染命令追加
+   `--audio-transition-plan work/audio_transition_plan.json`；默认不自动启用或猜测 J-cut/L-cut。）
+
+   （仅当源口播有稳定空调/风扇/电流底噪并已 A/B 试听时，加 `--speech-denoise light`；
+   噪声明显才试 `medium`，已做过云端/机内降噪或 VAD/noise gate 时保持 off。）
+
+7. python3 scripts/render_qa.py \
+     output/day<NN>_master.mp4 \
+     --platform douyin \
+     --json output/day<NN>_master_qa.json
+
+7.0. # 完整解码最终文件，核对视频/音频首尾 PTS、容器覆盖和视频帧数。
+     python3 scripts/stream_coverage_qa.py analyze \
+       output/day<NN>_master.mp4 \
+       --project-dir . \
+       --output output/verify/day<NN>_stream_coverage_qa.json \
+       --markdown output/verify/day<NN>_stream_coverage_qa.md \
+       --strict
+     python3 scripts/stream_coverage_qa.py verify \
+       --report output/verify/day<NN>_stream_coverage_qa.json \
+       --project-dir . \
+       --strict
+     # render plan 已锁定时长/帧数时，analyze 追加 --expected-duration / --expected-video-frames。
+     # 平台版经过 remux、字幕烧录或交付转码后，应对每个确切文件重新运行。
+
+7a. # 对最终编码文件做镜头级亮度/色度/饱和度/broadcast-range 复核。
+    python3 scripts/shot_color_qa.py \
+      output/day<NN>_master.mp4 \
+      --output output/verify/day<NN>_shot_color_qa.json \
+      --markdown output/verify/day<NN>_shot_color_qa.md \
+      --strict
+    # 色彩/亮度跳变默认只 WARN；按 Markdown 时间码看 master 后再决定是否回源重调。
+    # 多机位/B-roll/生成素材混剪或使用 color_grade 后推荐必跑。
+    # 详见 docs/prompts/81-shot-color-qa.md
+
+7b. # 先生成与主片 speed / cover offset 对齐的 timed-text JSON，再做留存节奏风险审计。
+     python3 scripts/subtitle_pack.py \
+       --config work/render_config.json \
+       --output-dir output/subtitles \
+       --basename day<NN>_master \
+       --speed 1.25 \
+       --offset 2.0
+     python3 scripts/subtitle_readability_qa.py \
+       output/subtitles/day<NN>_master.json \
+       --media output/day<NN>_master.mp4 \
+       --output output/verify/day<NN>_subtitle_readability_qa.json \
+       --markdown output/verify/day<NN>_subtitle_readability_qa.md \
+       --strict
+     python3 scripts/retention_rhythm_qa.py \
+       output/day<NN>_master.mp4 \
+       --timed-text output/subtitles/day<NN>_master.json \
+       --output output/verify/day<NN>_retention_rhythm_qa.json \
+       --markdown output/verify/day<NN>_retention_rhythm_qa.md \
+       --strict
+
+7b.0. # 对最终字幕的每个可见字符检查实际字体 cmap；不要信任系统隐式 fallback。
+      python3 scripts/subtitle_glyph_qa.py analyze \
+        --subtitle-pack output/subtitles/day<NN>_master.json \
+        --font 'fonts/NotoSansSC[wght].ttf' \
+        --project-dir . \
+        --output output/verify/day<NN>_subtitle_glyph_qa.json \
+        --markdown output/verify/day<NN>_subtitle_glyph_qa.md \
+        --strict
+      python3 scripts/subtitle_glyph_qa.py verify \
+        --report output/verify/day<NN>_subtitle_glyph_qa.json \
+        --project-dir . \
+        --strict
+      # 若确需 fallback，复制字体到项目 fonts/ 并显式加 --fallback-font；仍须看完整成片。
+
+7b.1. # 从确切 final 提取高风险字幕证据；随后完整 1× 看完 final，并填写 response。
+      python3 scripts/subtitle_render_review.py prepare \
+        --project-dir . \
+        --video output/day<NN>_master.mp4 \
+        --subtitle-pack output/subtitles/day<NN>_master.json \
+        --proof-dir output/verify/day<NN>_subtitle_render \
+        --output work/day<NN>_subtitle_render_review_request.json \
+        --markdown work/day<NN>_subtitle_render_review_request.md \
+        --response-template work/day<NN>_subtitle_render_review_response.json
+      # 检查所有字幕，再逐条核对 request 中的 context clip、中点原尺寸帧和 expected text。
+      python3 scripts/subtitle_render_review.py audit \
+        --request work/day<NN>_subtitle_render_review_request.json \
+        --response work/day<NN>_subtitle_render_review_response.json \
+        --output work/day<NN>_subtitle_render_review.json \
+        --markdown work/day<NN>_subtitle_render_review.md \
+        --strict
+      python3 scripts/subtitle_render_review.py verify \
+        --report work/day<NN>_subtitle_render_review.json \
+        --project-dir . \
+        --strict
+      # 缺失、旧文案、不可读、裁切、遮挡或不可观察均须修复、重渲染并重做完整闭环。
+
+7b.2. # 可选：能提供最终独立对白/旁白轨时，检查每条字幕是否真的落在人声活动上。
+      python3 scripts/caption_speech_qa.py analyze \
+        work/final_narration.wav \
+        --subtitle-pack output/subtitles/day<NN>_master.json \
+        --project-dir . \
+        --output output/verify/day<NN>_caption_speech_qa.json \
+        --markdown output/verify/day<NN>_caption_speech_qa.md \
+        --strict
+      python3 scripts/caption_speech_qa.py verify \
+        --report output/verify/day<NN>_caption_speech_qa.json \
+        --project-dir . \
+        --strict
+      # 不要输入带 BGM/SFX 的完整混音；振幅活动不是 speech recognition / forced alignment。
+
+7b.3. # 可选：用户给了参考广告/短片，并明确要参考它的剪辑节奏时。
+      python3 scripts/reference_edit_rhythm.py analyze \
+        --project-dir . \
+        --reference origin/<reference-video>.mp4 \
+        --candidate output/day<NN>_master.mp4 \
+        --evidence-dir output/verify/reference_edit_rhythm \
+        --output work/reference_edit_rhythm.json \
+        --markdown work/reference_edit_rhythm.md \
+        --strict
+      # 默认偏差只 WARN；明确把结构匹配设为验收条件时才加 --require-match。
+      # 完整看两条视频，只借鉴切点结构，禁止复制 pixels/audio/branding/story。
+      python3 scripts/reference_edit_rhythm.py verify \
+        --report work/reference_edit_rhythm.json \
+        --strict
+
+7c. python3 scripts/audio_master_report.py \
+      output/day<NN>_master.mp4 \
+      --output output/day<NN>_audio_master_report.json \
+      --markdown output/day<NN>_audio_master_report.md \
+      --strict
+
+7c.1. python3 scripts/audio_channel_qa.py analyze \
+        output/day<NN>_master.mp4 \
+        --project-dir . \
+        --output output/verify/day<NN>_audio_channel_qa.json \
+        --markdown output/verify/day<NN>_audio_channel_qa.md \
+        --strict
+      python3 scripts/audio_channel_qa.py verify \
+        --report output/verify/day<NN>_audio_channel_qa.json \
+        --project-dir . \
+        --strict
+      # 仍要在正常速度分别试听 stereo master 和 mono fold-down。
+
+7c.2. # 最终独立人声优先：查 40–400 ms 短促断音，并绑定正常速度听审证据。
+      python3 scripts/audio_dropout_qa.py analyze \
+        work/final_narration.wav \
+        --project-dir . \
+        --evidence-dir output/verify/day<NN>_audio_dropout_clips \
+        --output output/verify/day<NN>_audio_dropout_qa_scan.json \
+        --markdown output/verify/day<NN>_audio_dropout_qa_scan.md \
+        --response-template output/verify/day<NN>_audio_dropout_qa_response.json \
+        --strict
+      # 完整 1× 播放人声轨和全部 WAV，填写 response；dropout/uncertain 必须修。
+      python3 scripts/audio_dropout_qa.py audit \
+        --report output/verify/day<NN>_audio_dropout_qa_scan.json \
+        --response output/verify/day<NN>_audio_dropout_qa_response.json \
+        --output output/verify/day<NN>_audio_dropout_qa.json \
+        --markdown output/verify/day<NN>_audio_dropout_qa.md \
+        --project-dir . \
+        --strict
+      python3 scripts/audio_dropout_qa.py verify \
+        --report output/verify/day<NN>_audio_dropout_qa.json \
+        --project-dir . \
+        --strict
+      # 只有 mix 时可改用 master，但 BGM/SFX 可能掩盖人声掉点，交付说明要写明。
+
+7c.3. # 可选：最终旁白由多段 TTS / 配音片段拼成，混音前先查逐短语一致性。
+      python3 scripts/narration_loudness_qa.py analyze \
+        work/final_narration.wav \
+        --segments work/final_narration_segments.json \
+        --project-dir . \
+        --output output/verify/day<NN>_narration_loudness_qa.json \
+        --markdown output/verify/day<NN>_narration_loudness_qa.md \
+        --strict
+      python3 scripts/narration_loudness_qa.py verify \
+        --report output/verify/day<NN>_narration_loudness_qa.json \
+        --project-dir . \
+        --strict
+
+7d. # 最终 master 的大面积亮度 / 饱和红闪烁风险预检：
+    python3 scripts/flash_safety_qa.py analyze \
+      output/day<NN>_master.mp4 \
+      --project-dir . \
+      --output output/verify/day<NN>_flash_safety_qa.json \
+      --markdown output/verify/day<NN>_flash_safety_qa.md \
+      --strict
+    # 命中后按报告区间降低闪烁频率、反差/红饱和度或面积，再重渲染。
+    # 这是启发式筛查，不是医疗/法规认证；高风险交付仍需认可的专业 analyzer。
+
+7e. # 筛查单帧 / 少数帧闪帧、撕裂或生成变形：
+    python3 scripts/temporal_artifact_qa.py analyze \
+      output/day<NN>_master.mp4 \
+      --project-dir . \
+      --evidence-dir output/verify/day<NN>_temporal_artifact_frames \
+      --output output/verify/day<NN>_temporal_artifact_qa.json \
+      --markdown output/verify/day<NN>_temporal_artifact_qa.md \
+      --response-template work/day<NN>_temporal_artifact_response.json \
+      --strict
+    # 命中时完整 1× 播放，逐张看 before/suspect/after，填写 response 后运行 audit。
+    # artifact / uncertain 保持阻塞；intentional_edit 只在时间线意图明确且完整播放干净时使用。
+
+8. # 如果 render_qa 有 WARN/FAIL，或要抽查 hook / 转场 / 片尾：
+   python3 scripts/timeline_view.py output/day<NN>_master.mp4 \
+     --at <可疑秒数> \
+     --radius 1.5 \
+     --output output/verify/day<NN>_<秒数>s.png
+
+9. # 多平台比例不同或不能裁掉人物/UI/logo 时，先比较 cover/contain/blur
+   python3 scripts/framing_preview.py create \
+     --project-dir . \
+     --video output/day<NN>_master.mp4 \
+     --platforms xhs douyin wxch \
+     --preview-dir verify/framing \
+     --output work/framing_preview.json \
+     --markdown work/framing_preview.md \
+     --require-selection
+   # 看完 JPEG 后，逐个平台运行 select；原生比例会自动选择 native。
+   python3 scripts/framing_preview.py select \
+     --report work/framing_preview.json --platform xhs --strategy <cover|contain|blur>
+
+9a. python3 scripts/multi_export.py \
+     output/day<NN>_master.mp4 \
+     --output-dir output/ \
+     --platforms xhs douyin wxch \
+     --framing-preview work/framing_preview.json
+
+9b. # 可选：源片/master 是明确 PQ/HLG HDR，而发布目标需要 Rec.709 SDR 时：
+    python3 scripts/hdr_sdr.py plan \
+      output/day<NN>_master_hdr.mp4 \
+      --delivery output/day<NN>_master_sdr.mp4 \
+      --output work/hdr_sdr_plan.json \
+      --markdown work/hdr_sdr_plan.md
+    python3 scripts/hdr_sdr.py apply work/hdr_sdr_plan.json
+    python3 scripts/hdr_sdr.py verify work/hdr_sdr_plan.json
+    # 未知 color tags 或缺少 zscale+tonemap 会在编码前阻塞；完整看完 SDR 版，再重跑 QA 和审批。
+    # 详见 docs/prompts/87-hdr-sdr.md
+
+9c. # 可选：现有 master 需要放大或补到更高固定帧率时：
+    python3 scripts/video_enhancement.py plan output/day<NN>_master.mp4 \
+      --target-short-edge 1080 --fps 60 \
+      --enhanced output/day<NN>_master_enhanced.mp4 \
+      --comparison verify/video-enhancement-ab.mp4 \
+      --output work/video_enhancement_plan.json \
+      --markdown work/video_enhancement_plan.md
+    python3 scripts/video_enhancement.py apply work/video_enhancement_plan.json \
+      --markdown work/video_enhancement_plan.md
+    # 正常速度完整看 source-left/enhanced-right A/B，再带声完整看增强件；
+    # detail / edges / motion-cadence / audio-sync 全部 pass 后 confirm，再 verify --strict。
+    # Lanczos resize 不等于 ML 细节恢复；详见 docs/prompts/126-video-enhancement.md。
+
+9d. # 可选：客户/平台明确限制文件大小时，对选定发布版做 source-bound 两遍交付编码：
+    python3 scripts/delivery_encode.py plan \
+      output/day<NN>_master_douyin.mp4 \
+      --delivery output/day<NN>_douyin_delivery.mp4 \
+      --max-size-mib <上限> \
+      --output work/delivery_encode_plan.json \
+      --markdown work/delivery_encode_plan.md
+    python3 scripts/delivery_encode.py apply work/delivery_encode_plan.json \
+      --markdown work/delivery_encode_plan.md
+    python3 scripts/delivery_encode.py verify work/delivery_encode_plan.json
+    # 同构图、同时间线时，继续做全长 SSIM/PSNR；HDR/裁切/调色/变速结果不能用此像素门禁。
+    python3 scripts/encode_quality_qa.py analyze \
+      output/day<NN>_master_douyin.mp4 \
+      output/day<NN>_douyin_delivery.mp4 \
+      --project-dir . \
+      --output verify/encode_quality_qa.json \
+      --markdown verify/encode_quality_qa.md \
+      --strict
+    python3 scripts/encode_quality_qa.py verify \
+      --report verify/encode_quality_qa.json --project-dir . --strict
+    # 完整解码和分数都不等于画质批准；看最差帧时间码并正常速度 A/B 播放完整交付版，
+    # 再跑 render_qa 并纳入 approval receipt。详见 docs/prompts/107-encode-quality-qa.md。
+
+9e. # 可选：如果要交给 Premiere / FCP / Resolve 继续精修：
+    python3 scripts/export_edl.py \
+      --config work/render_config.json \
+      --output work/day<NN>_edit.edl \
+      --fps 30
+    python3 scripts/export_fcpxml.py \
+      --config work/render_config.json \
+      --output work/day<NN>_edit.fcpxml \
+      --fps 30 \
+      --width 1080 \
+      --height 1920
+    python3 scripts/export_otio.py \
+      --config work/render_config.json \
+      --output work/day<NN>_edit.otio \
+      --fps 30
+
+9d. # 可选：多段生成视频先锁定视觉剪辑，再按最终 record timeline 重建声音：
+    # render_config 每个 clip 的 label 必须对应 storyboard shot id。
+    python3 scripts/export_edl.py \
+      --config work/render_config.json \
+      --output work/locked_visual.edl \
+      --manifest work/locked_visual.edl.json \
+      --fps 30
+    python3 scripts/final_audio_storyboard.py prepare \
+      --project-dir . \
+      --edl work/locked_visual.edl.json \
+      --storyboard work/storyboard_plan.json \
+      --output work/final_audio_storyboard_request.json \
+      --markdown work/final_audio_storyboard_request.md \
+      --response-template work/final_audio_storyboard_response.json \
+      --strict
+    # 填写 response：每个 retained section 的 voice/sound/music/stems，以及每个 omitted beat 的去向。
+    python3 scripts/final_audio_storyboard.py audit \
+      --project-dir . \
+      --request work/final_audio_storyboard_request.json \
+      --response work/final_audio_storyboard_response.json \
+      --output work/final_audio_storyboard.json \
+      --markdown work/final_audio_storyboard.md \
+      --strict
+    python3 scripts/final_audio_storyboard.py verify \
+      --project-dir . \
+      --report work/final_audio_storyboard.json \
+      --strict
+    # 不要把 JSON 直接提交给 provider；先改写成 timed cue sheet，付费生成前另行确认。
+    # 详见 docs/prompts/95-final-audio-storyboard.md。
+
+10. python3 scripts/render_qa.py \
+     output/day<NN>_master_xhs.mp4 \
+     --platform xhs \
+     --json output/day<NN>_xhs_qa.json
+
+11. python3 scripts/render_qa.py \
+     output/day<NN>_master_douyin.mp4 \
+     --platform douyin \
+     --json output/day<NN>_douyin_qa.json
+
+12. python3 scripts/generate_caption.py \
+     --script work/clean_script.md \
+     --profile tech_pro \
+     --style-profile work/edit_style_profile.json \
+     --output output/day<NN>_caption.json
+
+12b. # 为同一条视频生成 3 套封面并先看 feed-size 预览：
+     python3 scripts/cover_variants.py \
+       output/day<NN>_master_xhs.mp4 \
+       --title "<4-8字封面文字>" \
+       --subtitle "<可选副标题>" \
+       --caption output/day<NN>_caption.json \
+       --style-profile work/edit_style_profile.json \
+       --platform xhs \
+       --output-dir output/covers \
+       --render \
+       --output work/cover_variants.json \
+       --markdown work/cover_variants.md
+     # 看完 output/covers/*_preview.png 后，重跑并加：
+     # --select cover-c --require-selection --strict
+     # 详见 docs/prompts/68-cover-variants.md
+
+13. python3 scripts/pipeline_manifest.py \
+     --project-dir . \
+     --target-stage publish_ready \
+     --require shot_color_qa \
+     --require flash_safety_qa \
+     --require temporal_artifact_qa \
+     --require stream_coverage_qa \
+     --require audio_channel_qa \
+     --require audio_dropout_qa \
+     --require subtitle_glyph_qa \
+     --require subtitle_render_review \
+     --output work/pipeline_manifest.json \
+     --markdown work/pipeline_manifest.md \
+     --strict
+    # 若执行了 7b.2 的字幕/人声对齐，另加：--require caption_speech_qa
+    # 若执行了 9c 的目标大小交付，另加：--require encode_quality_qa
+
+14. # 完整审片并确认封面/文案/字幕后，把最终交付件绑定到具体 SHA-256：
+    python3 scripts/approval_receipt.py create \
+      --project-dir . \
+      --artifact output/day<NN>_master_xhs.mp4 \
+      --artifact output/day<NN>_master_douyin.mp4 \
+      --artifact output/day<NN>_master_wxch.mp4 \
+      --artifact output/day<NN>_caption.json \
+      --artifact output/day<NN>_master_qa.json \
+      --approved-by "<reviewer label>" \
+      --note "<正常速度完整审片和文案/封面/字幕复核说明>" \
+      --output work/approval_receipt.json \
+      --markdown work/approval_receipt.md
+    # 如果选了独立封面/字幕 sidecar，也分别加 --artifact；不要把会重写的 manifest/package 放进收据。
+    # 详见 docs/prompts/77-approval-receipt.md
+
+15. python3 scripts/publish_package.py \
+     --project-dir . \
+     --platforms xhs douyin wxch \
+     --require-approval-receipt \
+     --output work/publish_package.json \
+     --markdown work/publish_package.md \
+     --strict
+
+16. python3 scripts/project_resume.py \
+     --project-dir . \
+     --target-stage publish_ready \
+     --output work/project_resume.json \
+     --markdown work/project_resume.md \
+     --agent-note CLAUDE.md
+
+17. python3 scripts/review_proxy.py \
+     output/day<NN>_master.mp4 \
+     --output output/verify/day<NN>_review_proxy.mp4 \
+     --manifest output/verify/day<NN>_review_proxy.json \
+     --markdown output/verify/day<NN>_review_proxy.md
+
+18. python3 scripts/review_dashboard.py \
+     --project-dir . \
+     --target-stage publish_ready \
+     --output work/review_dashboard.json \
+     --html work/review_dashboard.html \
+     --strict
+
+最后给我：
+- 三个平台的 mp4 路径
+- caption.json 里的 title + caption_body + tags + publish_time_hint
+- publish_package.md 里的每个平台上传 checklist 和 blockers
+- approval_receipt.md 和最新 verify 状态（必须 `current`；它不是数字签名）
+- project_resume.md 里的 status / phase / recommended_first_action（方便下次续跑）
+- review_proxy.mp4 路径；审片反馈要引用画面可见时间码，不能把它当发布成片
+- review_dashboard.html 路径，以及 review_dashboard.json 的 review_state / review_items 数量
+- 如触发了高影响动作，给我 production_authorization.json 的 `status`、exact scope 摘要与最新 live verify 状态
+- 如果跑了 source_receipts，给我 source_receipts.html 路径和 `summary.blocking` 数量
+- enrich_plan.json 里 broll/sticker/chapter 总数（确认丰富度足够）
+- content_guard 的输出（必须 ✅ 无违规）
+- render_qa 的输出（必须没有 FAIL；WARN 要解释）
+- stream_coverage_qa 的全量解码、decoded 音视频首尾 PTS、容器头尾覆盖、视频帧数和 live verify 状态
+- flash_safety_qa 的输出（BLOCK 必须修；clean 结果也不是医疗 / 法规认证）
+- temporal_artifact_qa 的输出、候选 before/suspect/after JPEG 与人工决定（artifact / uncertain 必须修）
+- shot_color_qa 的输出（broadcast-range / coverage BLOCK 必须修；切点 WARN 要看 master）
+- 如输入是 PQ/HLG HDR，给我 hdr_sdr_plan、BT.709 四项 color tag 和完整 SDR 审片结论
+- subtitle_readability_qa 的输出（BLOCK 必须修；WARN 要在正常速度看成片）
+- subtitle_glyph_qa 的逐字符 coverage、显式 fallback、missing 字符和 live verify 状态（missing 必须修）
+- subtitle_render_review 的完整 1× 播放状态、逐样本 presence/text/readability/layout、proof 路径和 live verify 状态
+- 如有最终独立人声轨，给出 caption_speech_qa 的逐 cue activity ratio、头尾静音和 live verify 状态
+- retention_rhythm_qa 的输出（BLOCK 必须修；WARN 要结合成片人工判断）
+- 如有参考视频，给我 reference_edit_rhythm 的 cut density / median shot / final hold / boundary distance、两张 contact sheet 和 live verify 状态
+- audio_master_report 的输出（必须 `summary.blocking == 0`）
+- audio_channel_qa 的左右活动、onset skew、balance、phase correlation、mono fold-down loss 和 live verify 状态
+- audio_dropout_qa 的候选时间/持续时长/前后文 RMS/下降深度、WAV 证据、完整 1× 播放和人工决定
+- 如使用分段 TTS / 配音，给出 narration_loudness_qa 的逐短语 LUFS、spread、dBTP、LRA 和 live verify 状态
+- 如用了 J-cut/L-cut，给我 audio_transition_plan / apply receipt，并说明每个改变边界的 1× 耳机 + 手机试听结论
+- 如用了 multimodal dead-air，给我 plan/verify 状态、源切点复盘路径和完整工作副本审片结论
+- 如有 jump_cut 或 QA WARN/FAIL，给我 timeline_view PNG 路径和人工判断
+
+注意事项：
+- 永远不要在画面上漏 1.25x / mlx-whisper / loudnorm 这类内部 token
+- 字幕字体走 Source Han Sans SC Heavy 或 STHeiti Medium，不要用 W3
+- 1.25x 之后必须做响度规范化（render_final 默认会做，不要 --no-loudnorm）
+- `--speech-denoise` 默认关闭；只处理稳态底噪，先用 10–20 秒样片比较 off/light，不能用它代替咳嗽、敲击、混响或多人多麦修复
+- 多机位素材先跑 `multicam_sync.py`；不能只看起点 offset，长片还要检查头/中/尾是否逐渐漂移。按说话者自动切镜仅在 speaker-mapped 音轨有区分度时用 `multicam_switch.py`，完整草稿必须带声复核
+- 外部上传、侵入性重排/删除、付费生成、声音克隆、真人/IP 使用或发布前，production authorization 必须 live verify 为 `ready`；scope 或源字节变化后重做
+- 剪辑风格档案是跨项目默认值，不是项目 brief 或时间线 recipe；只在文件存在且 `verify --strict` 通过时传 `--style-profile`
+- 音乐主导内容可先跑 `beat_sync.py --generate-plan`；固定 BPM fallback 只能作为复核草稿，不能冒充真实节拍检测
+- 有 BGM 的口播成片用 `--bgm-ducking`，并在正常速度试听旁白入口、停顿恢复和片尾；音乐主导视频可不启用
+- 发布前用 audio_master_report 确认 LUFS / true peak / 长静音，不要只凭耳朵判断
+- 发布前用 audio_channel_qa 检查缺声道、左右起始/能量、反相和 mono fold-down；报告不能替代 1× stereo/mono 完整试听
+- 发布前优先对最终独立人声轨运行 audio_dropout_qa；dropout/uncertain 必须修复，intentional_pause 要保留说明，混音 BGM/SFX 可能掩盖掉点
+- 分段 TTS / 配音先对最终独立旁白运行 narration_loudness_qa，再在混音后运行 audio_master_report；两者不能互相替代
+- 有最终独立人声轨时，用 caption_speech_qa 检查孤立/offset/越界字幕；禁止把含 BGM/SFX 的完整混音当人声输入，ready 也不替代最终 1× 字幕审看
+- 发布前用 flash_safety_qa 筛查大面积亮度 / 饱和红高频闪烁；不要为清 gate 随意放宽阈值，高风险交付要升级到认可的专业 analyzer
+- 发布前用 temporal_artifact_qa 补查单帧 / 少数帧瞬态异常；候选是人工审片入口，不是自动坏帧结论，也不能替代完整 1× 播放
+- 发布前对 master 和重要平台版运行 stream_coverage_qa；秒级轨道差异要回到渲染或 mux 修复，不能靠放宽阈值隐藏
+- shot_color_qa 的亮度/色度跳变是审片提示，不是审美分；不要为了清 WARN 把有意的日夜/图形切换调平
+- subtitle_readability_qa 的 CPS / 行长 WARN 是人工复核提示，不要为了清零机械拆句
+- subtitle_glyph_qa 只证明显式字体 cmap 覆盖；不证明 shaping、彩色 emoji、ASS 布局或最终可读性，仍须完整 1× 审片
+- subtitle_render_review 的抽样 clip / 帧用于覆盖高风险字幕；不能替代从头到尾正常速度检查所有字幕，最终 MP4 或字幕包变化后必须重做
+- retention_rhythm_qa 只是可观测节奏风险，不是留存率或爆款预测；不要为了消除 WARN 机械加切点
+- reference_edit_rhythm 只允许借鉴剪辑结构，不复制参考片画面、音频、品牌或故事；没有明确验收要求时不要加 `--require-match`
+- 如果 content_guard 拦截，先重写标题再继续，不要 --no-content-guard 绕过
+```
+
+## 输出对照
+
+跑完后你应该有：
+
+```
+day<NN>/
+├── origin/                 # 你提供的原始素材
+├── work/
+│   ├── runtime_preflight.json # workflow profile → 本机命令/encoder/filter live gate
+│   ├── runtime_preflight.md
+│   ├── interlace_analysis.json # progressive/interlaced/telecine/mixed idet 采样证据
+│   ├── interlace_conform_plan.json # progressive working copy + full A/B confirm live gate
+│   ├── loop_fill_plan.json # fixed-duration repeated clip + exact first-seam/full-playback live gate
+│   ├── production_authorization_scope.json # 确切素材/动作/provider/权利范围
+│   ├── production_authorization_request.json # source hash-bound 复核请求
+│   ├── production_authorization_response.json # 逐 action/right 人工决定
+│   ├── production_authorization.json # live-verified 本地授权 gate
+│   ├── edit_style_profile_spec.json # 可选：个人/品牌剪辑风格草案
+│   ├── edit_style_profile.json # 可选：无本地路径的已验证风格档案
+│   ├── transcript.json
+│   ├── llm_prompt.md       # 喂给 LLM 的 prompt
+│   ├── llm.json            # LLM 返回的 JSON
+│   ├── clean_script.md     # 5 字段重组后的清稿
+│   ├── source_receipts.json # 事实来源 proof deck（事实型视频可选/推荐）
+│   ├── source_receipts.html # 浏览器复核版 source deck
+│   ├── enrich_plan.json    # broll/sticker/chapter cues
+│   ├── storyboard_plan.json # 分镜 shot cards + 生成路由
+│   ├── storyboard_plan.md   # 人工 review 版分镜卡
+│   ├── video_prompt_pack.json # 视频生成提示词包 + paid approval gate
+│   ├── video_prompt_pack.md   # 人工 review 版 provider prompts
+│   ├── provider_capabilities.json # 带日期的 provider/surface/model 能力合同
+│   ├── reference_frame_preflight.json # 首帧/style key 画幅与背景 gate
+│   ├── reference_frame_preflight.md   # 人工 review 版参考帧检查
+│   ├── generation_tasks.json # 异步生成任务 submit_id / 下载 gate
+│   ├── generation_tasks.md   # 人工 review 版任务台账
+│   ├── storyboard_assets.json # 素材任务清单 + ready/paid 预检
+│   ├── storyboard_assets.md   # 人工 review 版素材表
+│   ├── generated_clip_review_request.json # 生成片段 source-bound 复核请求
+│   ├── generated_clip_review_response.json # reviewer 评分/裁切/重生决定
+│   ├── generated_clip_review.json # live-verified 生成片段 gate
+│   ├── generated_motion_window/ # 每条生成片 freeze/active 计划、Markdown 与 active working copy
+│   ├── generated_sequence_review_request.json # 相邻 clip 真实边界证据复核请求
+│   ├── generated_sequence_review_response.json # 身份/道具/空间/动作/机位/光色决定
+│   ├── generated_sequence_review.json # live-verified 组装前连续性 gate
+│   ├── jumpcut.json        # 可选：去停顿 cut list
+│   ├── multimodal_dead_air_plan.json # 可选：静音 AND 静帧 source-bound 死区计划
+│   ├── multimodal_dead_air_plan.md   # 可选：覆盖率/交集/切点复核表
+│   ├── day<NN>_edit.edl    # 可选：NLE handoff
+│   ├── day<NN>_edit.edl.json # 可选：EDL manifest
+│   ├── day<NN>_edit.fcpxml # 可选：FCPXML handoff
+│   ├── day<NN>_edit.fcpxml.json # 可选：FCPXML manifest
+│   ├── day<NN>_edit.otio   # 可选：OTIO handoff
+│   ├── day<NN>_edit.otio.json # 可选：OTIO manifest
+│   ├── locked_visual.edl.json # 可选：视觉剪辑锁定后的 final/source timeline facts
+│   ├── final_audio_storyboard_request.json # EDL/storyboard/source hash-bound 复核请求
+│   ├── final_audio_storyboard_response.json # final section / stems / omitted-story 人工决定
+│   ├── final_audio_storyboard.json # provider-neutral 最终声音分镜 + voice ledger live gate
+│   ├── final_audio_storyboard.md
+│   ├── render_config.json  # 喂给 render_final 的配置
+│   ├── audio_transition_plan.json # 可选：J-cut/L-cut source handle / hash / 时序 gate
+│   ├── audio_transition_plan.md   # 可选：逐边界 1× 试听清单
+│   ├── audio_transition_apply.json # 可选：单次编码输出 receipt
+│   ├── edit_preflight.json # 渲染前预检 gate
+│   ├── edit_preflight.md
+│   ├── subtitle_style_preview.json # 真实源帧 ASS 样式、字体/source hash 与最终选择 gate
+│   ├── subtitle_style_preview.md   # 三套 JPEG 路径、选择命令与复核说明
+│   ├── pipeline_manifest.json # 发布前 gate 汇总
+│   ├── pipeline_manifest.md
+│   ├── hdr_sdr_plan.json # 可选：PQ/HLG → BT.709 SDR / source + output hash gate
+│   ├── hdr_sdr_plan.md
+│   ├── video_enhancement_plan.json # 可选：本地放大/补帧、输出/A-B/review live gate
+│   ├── video_enhancement_plan.md
+│   ├── ping_pong_loop_plan.json # 可选：端帧去重往返循环、双边界 proof/review live gate
+│   ├── ping_pong_loop_plan.md
+│   ├── delivery_encode_plan.json # 可选：目标大小交付编码 / source + output hash gate
+│   ├── delivery_encode_plan.md
+│   ├── cover_variants.json # 封面 A/B 方案 + selected_cover
+│   ├── cover_variants.md
+│   ├── approval_receipt.json # 人工已复核交付件的 SHA-256 收据
+│   ├── approval_receipt.md
+│   ├── publish_package.json # 最终上传包
+│   ├── publish_package.md
+│   ├── project_resume.json # 续跑上下文包
+│   ├── project_resume.md
+│   ├── review_dashboard.json # 人工复核面板
+│   ├── review_dashboard.html
+│   ├── reference_edit_rhythm.json # 可选：参考片 vs 成片结构 + source/evidence hash gate
+│   ├── reference_edit_rhythm.md
+│   ├── day<NN>_subtitle_render_review_request.json # final/subtitle/proof hash-bound 人工审片请求
+│   ├── day<NN>_subtitle_render_review_response.json # 完整 1× + 逐样本人工决定
+│   ├── day<NN>_subtitle_render_review.json # 最终字幕像素 live gate
+│   └── day<NN>_subtitle_render_review.md
+└── output/
+    ├── verify/                         # timeline_view / review proxy 审片产物
+    │   ├── day<NN>_review_proxy.mp4     # 低码率 timecoded 审片视频，不可发布
+    │   ├── day<NN>_review_proxy.json    # review_proxy.v1 / 可复现命令
+    │   ├── day<NN>_review_proxy.md      # 审片说明
+    │   ├── day<NN>_subtitle_readability_qa.json # CPS / 时长 / 重叠 / 越界门禁
+    │   ├── day<NN>_subtitle_readability_qa.md   # cue 时间范围 + 修复建议
+    │   ├── day<NN>_subtitle_glyph_qa.json # 逐字符 cmap 覆盖 / 显式 fallback / missing live gate
+    │   ├── day<NN>_subtitle_glyph_qa.md   # 缺字 codepoint、cue 和字体分配复核表
+    │   ├── day<NN>_subtitle_render/       # 高风险 cue 的 1× context clips 与中点原尺寸 JPEG
+    │   ├── day<NN>_caption_speech_qa.json # 可选：字幕 cue / 独立人声活动覆盖 live gate
+    │   ├── day<NN>_caption_speech_qa.md   # 可选：逐 cue activity / edge silence 与复核边界
+    │   ├── day<NN>_retention_rhythm_qa.json # 成片 hook / 长镜头 / 节奏风险门禁
+    │   ├── day<NN>_retention_rhythm_qa.md   # 时间范围 + 修复建议
+    │   ├── day<NN>_flash_safety_qa.json # 亮度/饱和红 flash + 滚动窗口 live gate
+    │   ├── day<NN>_flash_safety_qa.md   # 风险区间、修复方向与非认证边界
+    │   ├── day<NN>_stream_coverage_qa.json # decoded A/V 首尾、容器覆盖、帧数 live gate
+    │   ├── day<NN>_stream_coverage_qa.md   # 覆盖表、blocker 与完整播放边界
+    │   ├── day<NN>_audio_channel_qa.json # 声道活动/onset/balance/phase/mono fold-down live gate
+    │   ├── day<NN>_audio_channel_qa.md   # 指标、blocker/warning 与完整试听边界
+    │   ├── day<NN>_audio_dropout_qa.json # 短促近静音候选 / evidence / 人工听审 live gate
+    │   ├── day<NN>_audio_dropout_qa.md   # 候选时间、RMS、下降深度与复核边界
+    │   ├── day<NN>_narration_loudness_qa.json # 可选：最终旁白逐短语 LUFS/spread/dBTP/LRA live gate
+    │   ├── day<NN>_narration_loudness_qa.md   # 可选：短语表、blocker、例外与人工试听要求
+    │   ├── reference_edit_rhythm/           # 可选：参考片/候选片 contact sheets
+    │   ├── day<NN>_shot_color_qa.json       # 镜头色彩 / 曝光 / broadcast-range gate
+    │   └── day<NN>_shot_color_qa.md         # 镜头指标 + 可疑切点复核命令
+    ├── day<NN>_master.mp4              # 9:16 主版本
+    ├── day<NN>_master_sdr.mp4          # 可选：PQ/HLG master 的 Rec.709 SDR 交付版
+    ├── day<NN>_master_xhs.mp4          # 3:4 小红书发布版
+    ├── day<NN>_douyin_delivery.mp4     # 可选：有硬大小上限的两遍交付版
+    ├── day<NN>_master_douyin.mp4       # 9:16 抖音版
+    ├── day<NN>_master_wxch.mp4         # 9:16 ≤60s 视频号版
+    ├── day<NN>_master_qa.json          # 主片 QA
+    ├── day<NN>_audio_master_report.json # 成片响度报告
+    ├── day<NN>_audio_master_report.md
+    ├── day<NN>_xhs_qa.json             # 小红书版 QA
+    ├── day<NN>_douyin_qa.json          # 抖音版 QA
+    ├── day<NN>_caption.json            # 标题 + 正文 + 标签
+    ├── covers/                         # 完整封面 + feed-size preview
+    └── multi_export_manifest.json
+```
+
+## 故事结构选择指南
+
+`--structure` 参数三选一：
+
+| 选项 | 适合 | Hook 模板 | CTA 模板 |
+|---|---|---|---|
+| `pain_solve` | 干货 / 教程 / AI 工具横评 | anti_consensus / pain_relate / number_result | save_bait + comment_lure |
+| `story_reversal` | 个人故事 / 创业复盘 / 心路 | scene_immersion / contrast_reverse | resonance_seek |
+| `listicle` | 盘点 / N 个 X / 资源清单 | benefit_save / number_result | save_bait + cliffhanger |
+
+## 节奏参数（由 `--profile tech_pro` 提供，无需手动）
+
+- 时长 90 秒（max 180）
+- 镜头节奏：前 3s 每 0.6s 一切（3-5 个钩子镜头），正文每 2.5s 一切
+- 字幕：≤14 字/行，1.2-3.0s 显示，64px Heavy 字体，4px 描边
+- 音频：BGM 比人声低 16 dB；正文密度 > 2.5 字/秒时 BGM 自动降到 -20 dB
+- 比例：主出 9:16，小红书版裁到 3:4
