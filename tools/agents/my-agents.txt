@@ -1,0 +1,45 @@
+# Agents from msitarzewski/agency-agents for design, 3D/animation, marketing,
+# social media and business development. Use with:
+#   ./scripts/install.sh --tool claude-code --agents-file <path to this file>
+
+# Design
+Brand Guardian
+Image Prompt Engineer
+UI Designer
+UX Architect
+UX Researcher
+Visual Storyteller
+Whimsy Injector
+UI Finish-Gate Reviewer
+Persona Walkthrough Specialist
+
+# 3D and animation
+Frontend Developer
+Technical Artist
+XR Immersive Developer
+Blender Add-on Engineer
+
+# Marketing
+Content Creator
+Growth Hacker
+SEO Specialist
+Email Marketing Strategist
+PR & Communications Manager
+AI Citation Strategist
+Video Optimization Specialist
+Short-Video Editing Coach
+Ad Creative Strategist
+Paid Social Strategist
+
+# Social media
+Instagram Curator
+TikTok Strategist
+Social Media Strategist
+
+# Business development
+Business Strategist
+Pricing Analyst
+Offer & Lead Gen Strategist
+Outbound Strategist
+Proposal Strategist
+Trend Researcher
