@@ -1,0 +1,128 @@
+{
+  ".mcp.json": {
+    "mtime": 1792791561.9813218,
+    "seen": 1793582701.4382024,
+    "ast_hash": "af296c658924fcee64973cb66d631f34",
+    "semantic_hash": ""
+  },
+  "falcon-redesign/.taste-skill/direction.json": {
+    "mtime": 1792780101.2588935,
+    "seen": 1793582701.4382102,
+    "ast_hash": "9ee165ec1bd1ae12d5c492027f820da8",
+    "semantic_hash": ""
+  },
+  "tools/agents/install-agents.ps1": {
+    "mtime": 1793549709.4743938,
+    "seen": 1793582701.4382133,
+    "ast_hash": "f7dfc6d9fe7cc820491942480b726b0b",
+    "semantic_hash": ""
+  },
+  "tools/windows/install-claude-tools.ps1": {
+    "mtime": 1792791539.5137727,
+    "seen": 1793582701.4382153,
+    "ast_hash": "1961680937a946cf4ecf4f4cf6fc0de4",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/duck.json": {
+    "mtime": 1793512238.625553,
+    "seen": 1793582701.4382167,
+    "ast_hash": "28cd8f35849b326d5df02620d65771ec",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/gen_vo.py": {
+    "mtime": 1793512286.1215518,
+    "seen": 1793582701.4382179,
+    "ast_hash": "ba4fc903df93e3e6f56fe46f61cde111",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/grade.py": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.4382193,
+    "ast_hash": "79a3936168a1979552469d5f2bfbef1f",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/music.py": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.4382205,
+    "ast_hash": "bd65adc3679c61fba0516cfc38e572f6",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/music2.py": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.4382222,
+    "ast_hash": "7f9d15531eedaa8c5bf53890ee9a8701",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/music3.py": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.4382234,
+    "ast_hash": "6799b9c12975d6ddb4d3401377d0fa5f",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/render.js": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.4382255,
+    "ast_hash": "e9659d9dda01b99279282afca8c4611b",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/script.js": {
+    "mtime": 1793512286.1278656,
+    "seen": 1793582701.4382274,
+    "ast_hash": "d298f0f6917c3ce3667f1bc3edd2adf5",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/script.py": {
+    "mtime": 1793512286.1278656,
+    "seen": 1793582701.4382288,
+    "ast_hash": "b68a4ee0259b2738969e40a0a04e9046",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/vo_manifest.json": {
+    "mtime": 1793512286.1545856,
+    "seen": 1793582701.43823,
+    "ast_hash": "c64346a650f5b3a5e5f3d889dd97f25f",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1793582663.5846624,
+    "seen": 1793582701.4382315,
+    "ast_hash": "666ff8470eeb9bb42f3198f59270714a",
+    "semantic_hash": ""
+  },
+  "falcon-redesign/index.html": {
+    "mtime": 1792780101.2676587,
+    "seen": 1793582701.438233,
+    "ast_hash": "179fb114e007a9111581359d3a24760b",
+    "semantic_hash": ""
+  },
+  "tools/agents/my-agents.txt": {
+    "mtime": 1793549760.8719645,
+    "seen": 1793582701.438234,
+    "ast_hash": "6d2d700882e15b399ab6f61cca2c68af",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/index.html": {
+    "mtime": 1793512236.4017205,
+    "seen": 1793582701.4382353,
+    "ast_hash": "35400a796ce21fcced864583af32b3cf",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/film2.html": {
+    "mtime": 1793512250.724071,
+    "seen": 1793582701.438237,
+    "ast_hash": "117d9b4119ccee9582af67dc5a6dea4a",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/film3.html": {
+    "mtime": 1793512254.5815525,
+    "seen": 1793582701.4382381,
+    "ast_hash": "be02338f6739fe756a3a490e5a77b00e",
+    "semantic_hash": ""
+  },
+  "yulia-cartier/video/index.html": {
+    "mtime": 1793512286.1255517,
+    "seen": 1793582701.43824,
+    "ast_hash": "f3509ec7d19bd848417fc134d8e9e077",
+    "semantic_hash": ""
+  }
+}

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Cloud-session setup: installs the Claude-Mem and claude-code-setup plugins
+# Cloud-session setup: installs the Claude-Mem and claude-code-setup plugins,
+# the Graphify CLI (code knowledge graph)
 # and the Headroom CLI (context compression proxy). Local machines are left
 # alone. Headroom telemetry is switched off for the session.
 set -euo pipefail
@@ -27,6 +28,15 @@ if command -v claude >/dev/null 2>&1; then
         || echo "session-setup: failed to install $1" >&2
     fi
   done
+fi
+
+# Graphify CLI: the project's PreToolUse hooks and graphify skill call it.
+if ! command -v graphify >/dev/null 2>&1; then
+  if command -v uv >/dev/null 2>&1; then
+    uv tool install graphifyy >/dev/null 2>&1 || echo "session-setup: graphify install failed" >&2
+  else
+    python3 -m pip install --user graphifyy >/dev/null 2>&1 || echo "session-setup: graphify install failed" >&2
+  fi
 fi
 
 if command -v headroom >/dev/null 2>&1; then
