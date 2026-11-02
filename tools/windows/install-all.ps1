@@ -7,6 +7,7 @@
 #   4. Graphify CLI and skill
 #   5. All skills from this repository             -> %USERPROFILE%\.claude\skills
 #   6. Free plugins: Omni Captions, Claude Video Vision
+#   7. AI Memory (akitaonrails/ai-memory): long-term memory shared across agents
 # Safe to run again: finished steps are skipped or refreshed.
 #
 # Run in PowerShell as Administrator (one line):
@@ -36,7 +37,7 @@ function Install-All {
     }
 
     # 1 -------------------------------------------------------------- tools
-    Step '1/6 Claude tools (Git, Node.js, Claude Code, plugins, Headroom, OmniRoute)'
+    Step '1/7 Claude tools (Git, Node.js, Claude Code, plugins, Headroom, OmniRoute)'
     try {
         Invoke-RestMethod "$raw/tools/windows/install-claude-tools.ps1" -UseBasicParsing | Invoke-Expression
         $results['Claude tools'] = 'done (see the summary above)'
@@ -44,7 +45,7 @@ function Install-All {
     Update-SessionPath
 
     # 2 -------------------------------------------------------------- economy
-    Step '2/6 Economy rules and economy-scout agent'
+    Step '2/7 Economy rules and economy-scout agent'
     try {
         foreach ($f in 'rules/economy.md', 'agents/economy-scout.md') {
             $dest = Join-Path $claudeDir ($f -replace '/', '\')
@@ -56,7 +57,7 @@ function Install-All {
     } catch { Warn "economy step failed: $_"; $results['Economy rules'] = 'FAILED' }
 
     # 3 -------------------------------------------------------------- agents
-    Step '3/6 Agents (design, 3D, marketing, social, business)'
+    Step '3/7 Agents (design, 3D, marketing, social, business)'
     try {
         Invoke-RestMethod "$raw/tools/agents/install-agents.ps1" -UseBasicParsing | Invoke-Expression
         $n = @(Get-ChildItem (Join-Path $claudeDir 'agents') -Filter *.md -ErrorAction SilentlyContinue).Count
@@ -64,7 +65,7 @@ function Install-All {
     } catch { Warn "agents step failed: $_"; $results['Agents'] = 'FAILED' }
 
     # 4 -------------------------------------------------------------- graphify
-    Step '4/6 Graphify (code knowledge graph)'
+    Step '4/7 Graphify (code knowledge graph)'
     if (-not (Test-Command 'graphify')) {
         if (Test-Command 'uv') { & uv tool install graphifyy 2>&1 | Out-Host }
         elseif (Test-Command 'py') { & py -3 -m pip install --user graphifyy 2>&1 | Out-Host }
@@ -76,7 +77,7 @@ function Install-All {
     } else { Warn 'graphify not found after install'; $results['Graphify'] = 'MISSING' }
 
     # 5 -------------------------------------------------------------- skills
-    Step '5/6 Skills from the repository (design, animation, 3D, video)'
+    Step '5/7 Skills from the repository (design, animation, 3D, video)'
     if (Test-Command 'git') {
         $repo = Join-Path $env:USERPROFILE 'gpt'
         if (Test-Path (Join-Path $repo '.git')) {
@@ -98,7 +99,7 @@ function Install-All {
     } else { Warn 'git not found, skipping skills'; $results['Skills'] = 'SKIPPED (no git)' }
 
     # 6 -------------------------------------------------------------- plugins
-    Step '6/6 Free plugins: Omni Captions, Claude Video Vision'
+    Step '6/7 Free plugins: Omni Captions, Claude Video Vision'
     if (Test-Command 'claude') {
         foreach ($p in @(@('lattifai/omni-captions-skills', 'omnicaptions@omni-captions-skills'),
                          @('jordanrendric/claude-video-vision', 'claude-video-vision@claude-video-vision'))) {
@@ -109,6 +110,20 @@ function Install-All {
         $results['Plugins'] = (@('omnicaptions', 'claude-video-vision') | ForEach-Object {
             if ($list -match $_) { "$_ ok" } else { "$_ MISSING" } }) -join ', '
     } else { Warn 'claude not found, skipping plugins'; $results['Plugins'] = 'SKIPPED (no claude)' }
+
+    # 7 -------------------------------------------------------------- ai-memory
+    Step '7/7 AI Memory (memory between sessions and agents)'
+    if (-not (Test-Command 'ai-memory')) {
+        try {
+            # Official installer: checks the release zip against its SHA-256, no admin needed.
+            Invoke-RestMethod 'https://github.com/akitaonrails/ai-memory/releases/latest/download/install.ps1' -UseBasicParsing | Invoke-Expression
+        } catch { Warn "ai-memory install failed: $_" }
+        $env:Path += ';' + (Join-Path $env:LOCALAPPDATA 'Programs\ai-memory')
+    }
+    if (Test-Command 'ai-memory') {
+        & ai-memory setup --yes --agent claude-code 2>&1 | Select-Object -Last 5 | Out-Host
+        $results['AI Memory'] = (& ai-memory --version 2>&1 | Out-String).Trim()
+    } else { Warn 'ai-memory not found after install'; $results['AI Memory'] = 'MISSING' }
 
     # ---------------------------------------------------------------- summary
     Step 'Summary'
