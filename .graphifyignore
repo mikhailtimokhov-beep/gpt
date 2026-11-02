@@ -1,0 +1,12 @@
+# Third-party skills, agents and media are not project code.
+.claude/
+graphify-out/
+**/photos/
+**/img/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.mp4
+*.mp3
+*.wav
